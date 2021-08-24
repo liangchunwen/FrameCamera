@@ -7,21 +7,19 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.fragment.NavHostFragment;
 
-import com.frame.camera.databinding.FragmentFirstBinding;
+import com.frame.camera.databinding.FragmentCameraBinding;
 
-public class FirstFragment extends Fragment {
-
-    private FragmentFirstBinding binding;
+public class CameraFragment extends Fragment {
+    private static final String TAG = "CameraFragment:CAMERA";
+    private FragmentCameraBinding binding;
 
     @Override
     public View onCreateView(
-            LayoutInflater inflater, ViewGroup container,
-            Bundle savedInstanceState
-    ) {
+            @NonNull LayoutInflater inflater, ViewGroup container,
+            Bundle savedInstanceState) {
 
-        binding = FragmentFirstBinding.inflate(inflater, container, false);
+        binding = FragmentCameraBinding.inflate(inflater, container, false);
         return binding.getRoot();
 
     }

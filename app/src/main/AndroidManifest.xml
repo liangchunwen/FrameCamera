@@ -10,7 +10,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FrameCamera">
         <activity
-            android:name=".MainActivity"
+            android:name=".activity.CameraActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.FrameCamera.NoActionBar">
