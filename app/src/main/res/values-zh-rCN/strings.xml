@@ -9,4 +9,5 @@
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="thumbnail">thumbnail</string>
+    <string name="without_camera_permission">无权限访问摄像机！</string>
 </resources>
