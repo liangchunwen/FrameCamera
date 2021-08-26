@@ -1,7 +1,10 @@
 package com.frame.camera.fragment;
 
 import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.PointF;
 import android.os.Bundle;
@@ -23,6 +26,7 @@ import com.frame.camera.sound.ISoundPlayback;
 import com.frame.camera.utils.CameraSoundUtils;
 import com.frame.camera.utils.FileUtils;
 import com.frame.camera.utils.FocusUtils;
+import com.frame.camera.utils.SystemProperties;
 import com.frame.camera.utils.ThumbnailUtils;
 import com.otaliastudios.cameraview.CameraException;
 import com.otaliastudios.cameraview.CameraListener;
@@ -30,7 +34,6 @@ import com.otaliastudios.cameraview.CameraOptions;
 import com.otaliastudios.cameraview.CameraView;
 import com.otaliastudios.cameraview.PictureResult;
 import com.otaliastudios.cameraview.VideoResult;
-import com.otaliastudios.cameraview.controls.Audio;
 import com.otaliastudios.cameraview.controls.Facing;
 import com.otaliastudios.cameraview.controls.Flash;
 import com.otaliastudios.cameraview.controls.Mode;
@@ -46,9 +49,13 @@ import java.io.IOException;
 
 public class CameraFragment extends Fragment implements View.OnClickListener {
     private static final String TAG = "CameraFragment:CAMERA";
+    private static final String VIDEO_KEY_DOWN_ACTION = "com.runbo.video.key.down";
+    private static final String CAMERA_KEY_DOWN_ACTION = "com.runbo.camera.key.down";
     private static final int UPDATE_THUMB_UI = 0;
+
     private FragmentCameraBinding binding;
     private CameraView mCameraView;
+    private MyReceiver myReceiver;
 
     @SuppressLint("HandlerLeak")
     public Handler mHandler = new Handler(Looper.getMainLooper()) {
@@ -67,6 +74,49 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         }
     };
 
+    private class MyReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            Log.d(TAG, "action: " + action);
+            if (action.equals(VIDEO_KEY_DOWN_ACTION)) {
+                //如果当前是拍照模式则切换为录像模式
+                if (mCameraView.getMode() == Mode.PICTURE) {
+                    onModeSwitch("video");
+                }
+                onShutterClick();
+            } else if (action.equals(CAMERA_KEY_DOWN_ACTION)) {
+                if (mCameraView.isTakingVideo()) {
+                    mCameraView.takePictureSnapshot();
+                } else {
+                    //如果当前是录像模式则切换为拍照模式
+                    if (mCameraView.getMode() == Mode.VIDEO) {
+                        onModeSwitch("camera");
+                    }
+                    onShutterClick();
+                }
+            }
+        }
+    }
+
+    private void registerReceiver() {
+        if (myReceiver != null) {
+            unregisterReceiver();
+        }
+        myReceiver = new MyReceiver();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(VIDEO_KEY_DOWN_ACTION);
+        filter.addAction(CAMERA_KEY_DOWN_ACTION);
+        requireActivity().registerReceiver(myReceiver, filter);
+    }
+
+    private void unregisterReceiver() {
+        if (myReceiver != null) {
+            requireActivity().unregisterReceiver(myReceiver);
+            myReceiver = null;
+        }
+    }
+
     @Override
     public View onCreateView(
             @NonNull LayoutInflater inflater, ViewGroup container,
@@ -76,9 +126,20 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         return binding.getRoot();
     }
 
+    private boolean isKeyDownStart() {
+        return requireActivity().getIntent().getBooleanExtra("key_down_start", false);
+    }
+
+    private void resetKeyDownFlag() {
+        requireActivity().getIntent().putExtra("key_down_start", false);
+    }
+
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mCameraView = binding.cameraView;
+        if (isKeyDownStart()) {
+            onModeSwitch(requireActivity().getIntent().getStringExtra("camera_mode"));
+        }
         FocusUtils.initFocus(getActivity(), mCameraView);
         mCameraView.setAutoFocusMarker(autoFocusMarker);
         mCameraView.addCameraListener(cameraListener);
@@ -114,7 +175,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
     private void updateThumbBtnUI() {
         String filePath = ThumbnailUtils.getLastMediaFilePath();
         Log.d(TAG, "updateThumbBtnUI()-filePath: " + filePath);
-        Bitmap lastThumb = null;
+        Bitmap lastThumb;
         if (ThumbnailUtils.getVideoThumbType()) {
             lastThumb = ThumbnailUtils.getVideoThumbnail(filePath);
         } else {
@@ -160,14 +221,22 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         @Override
         public void onCameraOpened(@NonNull CameraOptions options) {
             super.onCameraOpened(options);
+            SystemProperties.set("sys.camera.status", "1");//相机打开
+            Log.d(TAG, SystemProperties.get("sys.camera.status", "0"));
             CameraSoundUtils.initSound(getActivity());
             mCameraView.startAutoFocus((float) mCameraView.getWidth() / 2, (float) mCameraView.getHeight() / 2);
             mCameraView.setAutoFocusResetDelay(1000);
+            if (isKeyDownStart()) {
+                onShutterClick();
+                resetKeyDownFlag();
+            }
         }
 
         @Override
         public void onCameraClosed() {
             super.onCameraClosed();
+            SystemProperties.set("sys.camera.status", "0");//相机关闭
+            Log.d(TAG, SystemProperties.get("sys.camera.status", "0"));
             CameraSoundUtils.releaseSound();
         }
 
@@ -237,37 +306,53 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         }
     };
 
-    @Override
-    public void onClick(View v) {
-        if (v == binding.modeSwitchImageView) {
+    private void onModeSwitch(String action) {
+        Log.d(TAG, "onModeSwitch-action: " + action);
+        if (action == null) {
             if (mCameraView.getMode() == Mode.PICTURE) {
                 mCameraView.setMode(Mode.VIDEO);
-                mCameraView.setAudio(Audio.ON);
                 updateModeBtnUI(Mode.VIDEO);
             } else {
                 mCameraView.setMode(Mode.PICTURE);
                 updateModeBtnUI(Mode.PICTURE);
             }
-        } else if (v == binding.shutImageView) {
-            if (mCameraView.getMode() == Mode.PICTURE) {
+        } else if (action.equals("video")) {
+            mCameraView.setMode(Mode.VIDEO);
+            updateModeBtnUI(Mode.VIDEO);
+        } else if (action.equals("camera")) {
+            mCameraView.setMode(Mode.PICTURE);
+            updateModeBtnUI(Mode.PICTURE);
+        }
+    }
+
+    private void onShutterClick() {
+        if (mCameraView.getMode() == Mode.PICTURE) {
+            // 隐藏对焦框
+            FocusUtils.hideFocus();
+            // 停止播放对焦声音
+            mCameraView.setPlaySounds(false);
+            CameraSoundUtils.playSound(getActivity(), ISoundPlayback.SHUTTER_CLICK);
+            mCameraView.takePictureSnapshot();
+        } else if (mCameraView.getMode() == Mode.VIDEO) {
+            if (mCameraView.isTakingVideo()) {
+                mCameraView.stopVideo();
+            } else {
                 // 隐藏对焦框
                 FocusUtils.hideFocus();
                 // 停止播放对焦声音
                 mCameraView.setPlaySounds(false);
-                CameraSoundUtils.playSound(getActivity(), ISoundPlayback.SHUTTER_CLICK);
-                mCameraView.takePictureSnapshot();
-            } else if (mCameraView.getMode() == Mode.VIDEO) {
-                if (mCameraView.isTakingVideo()) {
-                    mCameraView.stopVideo();
-                } else {
-                    // 隐藏对焦框
-                    FocusUtils.hideFocus();
-                    // 停止播放对焦声音
-                    mCameraView.setPlaySounds(false);
-                    File mVideoFile = FileUtils.createVideoFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_VIDEO));
-                    mCameraView.takeVideoSnapshot(mVideoFile);
-                }
+                File mVideoFile = FileUtils.createVideoFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_VIDEO));
+                mCameraView.takeVideoSnapshot(mVideoFile);
             }
+        }
+    }
+
+    @Override
+    public void onClick(View v) {
+        if (v == binding.modeSwitchImageView) {
+            onModeSwitch(null);
+        } else if (v == binding.shutImageView) {
+            onShutterClick();
         } else if (v == binding.thumbImageView) {
             ThumbnailUtils.gotoGallery(getActivity(), ThumbnailUtils.getVideoThumbType(), ThumbnailUtils.getLastMediaFilePath());
         } else if (v == binding.cameraSwitchImageView) {
@@ -287,23 +372,20 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         }
     }
 
-    private final Runnable thumbRunnable = new Runnable() {
-        @Override
-        public void run() {
-            mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
-        }
-    };
+    private final Runnable thumbRunnable = () -> mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
 
     @Override
     public void onResume() {
         super.onResume();
         mCameraView.open();
         mHandler.postDelayed(thumbRunnable, 0);
+        registerReceiver();
     }
 
     @Override
     public void onPause() {
         super.onPause();
+        unregisterReceiver();
         mCameraView.close();
     }
 
