@@ -1,17 +1,13 @@
 package com.frame.camera.fragment;
 
 import android.annotation.SuppressLint;
-import android.content.ContentResolver;
-import android.content.ContentValues;
+import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.PointF;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,6 +22,7 @@ import com.frame.camera.databinding.FragmentCameraBinding;
 import com.frame.camera.sound.ISoundPlayback;
 import com.frame.camera.utils.CameraSoundUtils;
 import com.frame.camera.utils.FileUtils;
+import com.frame.camera.utils.FocusUtils;
 import com.frame.camera.utils.ThumbnailUtils;
 import com.otaliastudios.cameraview.CameraException;
 import com.otaliastudios.cameraview.CameraListener;
@@ -34,13 +31,15 @@ import com.otaliastudios.cameraview.CameraView;
 import com.otaliastudios.cameraview.PictureResult;
 import com.otaliastudios.cameraview.VideoResult;
 import com.otaliastudios.cameraview.controls.Audio;
-import com.otaliastudios.cameraview.controls.AudioCodec;
 import com.otaliastudios.cameraview.controls.Facing;
 import com.otaliastudios.cameraview.controls.Flash;
 import com.otaliastudios.cameraview.controls.Mode;
-import com.otaliastudios.cameraview.size.Size;
+import com.otaliastudios.cameraview.markers.AutoFocusMarker;
+import com.otaliastudios.cameraview.markers.AutoFocusTrigger;
+import com.otaliastudios.cameraview.markers.DefaultAutoFocusMarker;
 
-import java.io.ByteArrayOutputStream;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -80,6 +79,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mCameraView = binding.cameraView;
+        FocusUtils.initFocus(getActivity(), mCameraView);
+        mCameraView.setAutoFocusMarker(autoFocusMarker);
         mCameraView.addCameraListener(cameraListener);
         binding.modeSwitchImageView.setOnClickListener(this);
         binding.shutImageView.setOnClickListener(this);
@@ -136,11 +137,33 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         }
     }
 
+    AutoFocusMarker autoFocusMarker = new DefaultAutoFocusMarker() {
+        @Override
+        public void onAutoFocusStart(@NonNull @NotNull AutoFocusTrigger trigger, @NonNull @NotNull PointF point) {
+            FocusUtils.startFocus(point.x, point.y);
+            mCameraView.setPlaySounds(true);
+        }
+
+        @Override
+        public void onAutoFocusEnd(@NonNull @NotNull AutoFocusTrigger trigger, boolean successful, @NonNull @NotNull PointF point) {
+            FocusUtils.focusSuccess();
+        }
+
+        @NotNull
+        @Override
+        public View onAttach(@NonNull @NotNull Context context, @NonNull @NotNull ViewGroup container) {
+            return FocusUtils.getFocusView(getActivity());
+        }
+    };
+
     CameraListener cameraListener = new CameraListener() {
         @Override
         public void onCameraOpened(@NonNull CameraOptions options) {
             super.onCameraOpened(options);
             CameraSoundUtils.initSound(getActivity());
+            mCameraView.startAutoFocus((float) mCameraView.getWidth() / 2, (float) mCameraView.getHeight() / 2);
+            mCameraView.setAutoFocusResetDelay(1000);
+            CameraSoundUtils.playSound(getActivity(), ISoundPlayback.FOCUS_COMPLETE);
         }
 
         @Override
@@ -228,12 +251,20 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             }
         } else if (v == binding.shutImageView) {
             if (mCameraView.getMode() == Mode.PICTURE) {
+                // 隐藏对焦框
+                FocusUtils.hideFocus();
+                // 停止播放对焦声音
+                mCameraView.setPlaySounds(false);
                 CameraSoundUtils.playSound(getActivity(), ISoundPlayback.SHUTTER_CLICK);
                 mCameraView.takePictureSnapshot();
             } else if (mCameraView.getMode() == Mode.VIDEO) {
                 if (mCameraView.isTakingVideo()) {
                     mCameraView.stopVideo();
                 } else {
+                    // 隐藏对焦框
+                    FocusUtils.hideFocus();
+                    // 停止播放对焦声音
+                    mCameraView.setPlaySounds(false);
                     File mVideoFile = FileUtils.createVideoFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_VIDEO));
                     mCameraView.takeVideoSnapshot(mVideoFile);
                 }

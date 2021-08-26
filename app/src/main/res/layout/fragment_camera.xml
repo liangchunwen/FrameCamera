@@ -15,6 +15,9 @@
         android:layout_alignParentTop="true"
         android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:screenReaderFocusable="true"
 
         app:cameraMode="picture"
         app:cameraEngine="camera2"
