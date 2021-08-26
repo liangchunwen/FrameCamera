@@ -163,7 +163,6 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             CameraSoundUtils.initSound(getActivity());
             mCameraView.startAutoFocus((float) mCameraView.getWidth() / 2, (float) mCameraView.getHeight() / 2);
             mCameraView.setAutoFocusResetDelay(1000);
-            CameraSoundUtils.playSound(getActivity(), ISoundPlayback.FOCUS_COMPLETE);
         }
 
         @Override
