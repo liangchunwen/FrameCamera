@@ -11,4 +11,9 @@
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="thumbnail">thumbnail</string>
     <string name="without_camera_permission">Without camera permission！</string>
+    <string name="police_id">police id：%1s</string>
+    <string name="police_name">police name：%1s</string>
+    <string name="device_id">device id：%1s</string>
+    <string name="company_id">company id：%1s</string>
+    <string name="company_name">company name：%1s</string>
 </resources>

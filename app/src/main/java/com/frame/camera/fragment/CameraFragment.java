@@ -134,6 +134,25 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         requireActivity().getIntent().putExtra("key_down_start", false);
     }
 
+    private void setPoliceWaterMark() {
+        String police_id = SystemProperties.get("persist.policeman.id", "");
+        String police_name = SystemProperties.get("persist.policeman.name", "");
+        String device_id = SystemProperties.get("persist.device.id", "");
+        String company_id = SystemProperties.get("persist.company.id", "");
+        String company_name = SystemProperties.get("persist.company.name", "");
+        Log.d(TAG, "police_id: " + police_id);
+        Log.d(TAG, "police_name: " + police_name);
+        Log.d(TAG, "device_id: " + device_id);
+        Log.d(TAG, "company_id: " + company_id);
+        Log.d(TAG, "company_name: " + company_name);
+
+        binding.policeIdTv.setText(String.format(getString(R.string.police_id), police_id));
+        binding.policeNameTv.setText(String.format(getString(R.string.police_name), police_name));
+        binding.deviceIdTv.setText(String.format(getString(R.string.device_id), device_id));
+        binding.companyIdTv.setText(String.format(getString(R.string.company_id), company_id));
+        binding.companyNameTv.setText(String.format(getString(R.string.company_name), company_name));
+    }
+
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         mCameraView = binding.cameraView;
@@ -148,6 +167,16 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         binding.thumbImageView.setOnClickListener(this);
         binding.cameraSwitchImageView.setOnClickListener(this);
         binding.flashImageView.setOnClickListener(this);
+
+        //针对DT951的RunboZ1版本显示警员信息水印
+        String custom_version = SystemProperties.get("ro.custom.build.version", "");
+        Log.d(TAG, "custom_version: " + custom_version);
+        if (custom_version.startsWith("ZF2020_DT951_RunboZ1")) {
+            binding.policeInfoRl.setVisibility(View.VISIBLE);
+            setPoliceWaterMark();
+        } else {
+            binding.policeInfoRl.setVisibility(View.GONE);
+        }
     }
 
     private void savePictureData(PictureResult result) {

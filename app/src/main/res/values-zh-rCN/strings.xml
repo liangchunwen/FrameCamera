@@ -10,4 +10,9 @@
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
     <string name="thumbnail">thumbnail</string>
     <string name="without_camera_permission">无权限访问摄像机！</string>
+    <string name="police_id">警员编号：%1s</string>
+    <string name="police_name">警员姓名：%1s</string>
+    <string name="device_id">设备编号：%1s</string>
+    <string name="company_id">单位编号：%1s</string>
+    <string name="company_name">单位名称：%1s</string>
 </resources>
