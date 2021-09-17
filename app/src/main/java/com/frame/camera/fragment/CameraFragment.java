@@ -37,6 +37,8 @@ import com.otaliastudios.cameraview.VideoResult;
 import com.otaliastudios.cameraview.controls.Facing;
 import com.otaliastudios.cameraview.controls.Flash;
 import com.otaliastudios.cameraview.controls.Mode;
+import com.otaliastudios.cameraview.frame.Frame;
+import com.otaliastudios.cameraview.frame.FrameProcessor;
 import com.otaliastudios.cameraview.markers.AutoFocusMarker;
 import com.otaliastudios.cameraview.markers.AutoFocusTrigger;
 import com.otaliastudios.cameraview.markers.DefaultAutoFocusMarker;
@@ -162,6 +164,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         FocusUtils.initFocus(getActivity(), mCameraView);
         mCameraView.setAutoFocusMarker(autoFocusMarker);
         mCameraView.addCameraListener(cameraListener);
+        mCameraView.addFrameProcessor(frameProcessor);
         binding.modeSwitchImageView.setOnClickListener(this);
         binding.shutImageView.setOnClickListener(this);
         binding.thumbImageView.setOnClickListener(this);
@@ -226,6 +229,13 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             binding.modeSwitchImageView.invalidate();
         }
     }
+
+    FrameProcessor frameProcessor = new FrameProcessor() {
+        @Override
+        public void process(@NonNull Frame frame) {
+            byte[] bytes = frame.getData();
+        }
+    };
 
     AutoFocusMarker autoFocusMarker = new DefaultAutoFocusMarker() {
         @Override
