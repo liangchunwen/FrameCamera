@@ -424,6 +424,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
     @Override
     public void onPause() {
         super.onPause();
+        SystemProperties.set("sys.camera.status", "0");//相机关闭
         unregisterReceiver();
         mCameraView.close();
     }

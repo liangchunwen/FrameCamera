@@ -28,6 +28,12 @@ public class CameraActivity extends BaseActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        finish();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         binding = null;
