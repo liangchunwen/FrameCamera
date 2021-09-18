@@ -2,15 +2,19 @@ package com.frame.camera.fragment;
 
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.PointF;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,12 +22,14 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
 import com.frame.camera.R;
 import com.frame.camera.databinding.FragmentCameraBinding;
 import com.frame.camera.sound.ISoundPlayback;
 import com.frame.camera.utils.CameraSoundUtils;
+import com.frame.camera.utils.CameraUtil;
 import com.frame.camera.utils.FileUtils;
 import com.frame.camera.utils.FocusUtils;
 import com.frame.camera.utils.SystemProperties;
@@ -42,6 +48,7 @@ import com.otaliastudios.cameraview.frame.FrameProcessor;
 import com.otaliastudios.cameraview.markers.AutoFocusMarker;
 import com.otaliastudios.cameraview.markers.AutoFocusTrigger;
 import com.otaliastudios.cameraview.markers.DefaultAutoFocusMarker;
+import com.otaliastudios.cameraview.size.Size;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -58,6 +65,10 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
     private FragmentCameraBinding binding;
     private CameraView mCameraView;
     private MyReceiver myReceiver;
+    private String mCurrentPath;
+    private String mCurrentTitle;
+    private long mCurrentTime;
+    private Size mCurrentSize;
 
     @SuppressLint("HandlerLeak")
     public Handler mHandler = new Handler(Looper.getMainLooper()) {
@@ -182,10 +193,17 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.Q)
     private void savePictureData(PictureResult result) {
         byte[] bytes = result.getData();
         FileOutputStream output = null;
-        File mPictureFile = FileUtils.createPictureFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_IMAGE));
+        mCurrentTime = System.currentTimeMillis();
+        mCurrentTitle = CameraUtil.createFileTitle(false, mCurrentTime);
+        String fileName = CameraUtil.createFileName(false, mCurrentTitle);
+        //File mPictureFile = FileUtils.createPictureFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_IMAGE));
+        File mPictureFile = FileUtils.createPictureFile(fileName);
+        mCurrentPath = mPictureFile.getAbsolutePath();
+        updateGallery(false, bytes);
         try {
             // save to file
             output = new FileOutputStream(mPictureFile);
@@ -323,12 +341,15 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         @Override
         public void onVideoRecordingStart() {
             super.onVideoRecordingStart();
+            // 初始化mVideoSize
+            mCurrentSize = mCameraView.getVideoSize();
             binding.shutImageView.setImageResource(R.drawable.ic_video_recording_background);
             binding.shutImageView.invalidate();
             binding.thumbImageView.setEnabled(false);
             CameraSoundUtils.playSound(getActivity(), ISoundPlayback.START_VIDEO_RECORDING);
         }
 
+        @RequiresApi(api = Build.VERSION_CODES.Q)
         @Override
         public void onVideoRecordingEnd() {
             super.onVideoRecordingEnd();
@@ -336,6 +357,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             binding.shutImageView.invalidate();
             binding.thumbImageView.setEnabled(true);
             mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
+            updateGallery(true, null);
             CameraSoundUtils.playSound(getActivity(), ISoundPlayback.STOP_VIDEO_RECORDING);
         }
 
@@ -344,6 +366,35 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             super.onPictureShutter();
         }
     };
+
+    @RequiresApi(api = Build.VERSION_CODES.Q)
+    private void updateGallery(boolean isVideo, byte[] bytes) {
+        //insert database(插入到系统相册数据库)
+        ContentValues mContentValues;
+        Uri mUri;
+        if (isVideo) {
+            mContentValues = CameraUtil.createVideoValues(mCurrentTitle, mCurrentPath, mCurrentTime, mCurrentSize.getWidth(), mCurrentSize.getHeight());
+            if (getActivity() != null) {
+                mUri = getActivity().getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, mContentValues);
+                getActivity().getContentResolver().update(mUri, mContentValues, null, null);
+            }
+        } else {
+            mCurrentSize = mCameraView.getPictureSize();
+            int mPictureWidth = 0, mPictureHeight = 0;
+            if (mCurrentSize != null) {
+                mPictureWidth = mCurrentSize.getWidth();
+                mPictureHeight = mCurrentSize.getHeight();
+            }
+            mContentValues = CameraUtil.createPhotoValues(bytes, mCurrentTitle, mCurrentTime, mCurrentPath, mPictureWidth, mPictureHeight);
+            if (getActivity() != null) {
+                mUri = getActivity().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mContentValues);
+                //getActivity().getContentResolver().update(mUri, mContentValues, null, null);
+            }
+        }
+        if (getActivity() != null) {
+            getActivity().sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.parse("file://" + mCurrentPath)));
+        }
+    }
 
     private void onModeSwitch(String action) {
         Log.d(TAG, "onModeSwitch-action: " + action);
@@ -380,7 +431,13 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
                 FocusUtils.hideFocus();
                 // 停止播放对焦声音
                 mCameraView.setPlaySounds(false);
-                File mVideoFile = FileUtils.createVideoFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_VIDEO));
+
+                mCurrentTime = System.currentTimeMillis();
+                mCurrentTitle = CameraUtil.createFileTitle(true, mCurrentTime);
+                String fileName = CameraUtil.createFileName(true, mCurrentTitle);
+                //File mVideoFile = FileUtils.createVideoFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_VIDEO));
+                File mVideoFile = FileUtils.createVideoFile(fileName);
+                mCurrentPath = mVideoFile.getAbsolutePath();
                 mCameraView.takeVideoSnapshot(mVideoFile);
             }
         }
