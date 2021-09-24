@@ -15,4 +15,8 @@
     <string name="device_id">设备编号：%1s</string>
     <string name="company_id">单位编号：%1s</string>
     <string name="company_name">单位名称：%1s</string>
+    <string name="video">视频</string>
+    <string name="picture">图片</string>
+    <string name="audio">录音</string>
+    <string name="document">文档</string>
 </resources>

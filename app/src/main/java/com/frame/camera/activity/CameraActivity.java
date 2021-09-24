@@ -5,6 +5,8 @@ import android.widget.Toast;
 
 import com.frame.camera.R;
 import androidx.navigation.Navigation;
+
+import com.frame.camera.application.MyApplication;
 import com.frame.camera.databinding.ActivityCameraBinding;
 import com.frame.camera.utils.PermissionsUtils;
 
@@ -28,9 +30,12 @@ public class CameraActivity extends BaseActivity {
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
-        finish();
+    protected void onStop() {
+        super.onStop();
+        //app内部跳转不需要销毁Activity
+        if (!MyApplication.isAppBtnClick) {
+            finish();
+        }
     }
 
     @Override

@@ -3,6 +3,8 @@ package com.frame.camera.utils;
 import android.os.Environment;
 import android.util.Log;
 
+import com.frame.camera.application.MyApplication;
+
 import java.io.File;
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
@@ -25,31 +27,40 @@ public class FileUtils {
      */
     public static final String VIDEO_FORMAT = ".mp4";
 
-    private static final File storageDirectoryPath = Environment
-            .getExternalStorageDirectory();
-    public static final int MEDIA_TYPE_IMAGE = 1;
-    public static final int MEDIA_TYPE_VIDEO = 2;
-    public static final String mediaFileDir = "DCIM/Camera" + File.separator + new SimpleDateFormat("yyyyMMdd", Locale.CHINA).format(new Date());
+    public static final int FILE_TYPE_IMAGE = 1;
+    public static final int FILE_TYPE_VIDEO = 2;
+    public static final int FILE_TYPE_AUDIO = 3;
+    public static final int FILE_TYPE_DOCUMENT = 4;
 
-    public static String getMediaFileDir() {
-        String mediaDir =  storageDirectoryPath.getAbsolutePath() + File.separator + mediaFileDir;
-        File mediaFile = new File(mediaDir);
-        if (!mediaFile.exists()) {
-            if (!mediaFile.mkdirs()) {
+    public static String getFileDir(int type) {
+        String currentDir = Environment.getExternalStorageDirectory().getAbsolutePath();
+        if (type == FILE_TYPE_IMAGE) {
+            currentDir = MyApplication.pictureDir.getAbsolutePath();
+        } else if (type == FILE_TYPE_VIDEO) {
+            currentDir = MyApplication.videoDir.getAbsolutePath();
+        } else if (type == FILE_TYPE_AUDIO) {
+            currentDir = MyApplication.audioDir.getAbsolutePath();
+        } else if (type == FILE_TYPE_DOCUMENT){
+            currentDir = MyApplication.documentDir.getAbsolutePath();
+        }
+        String fileDir = currentDir + File.separator + new SimpleDateFormat("yyyyMMdd", Locale.CHINA).format(new Date());
+        File file = new File(fileDir);
+        if (!file.exists()) {
+            if (!file.mkdirs()) {
                 return null;
             }
         }
 
-        return mediaDir;
+        return fileDir;
     }
 
     public static String getMediaFileName(int type) {
         String fileName = null;
-        if (type == MEDIA_TYPE_IMAGE) {
+        if (type == FILE_TYPE_IMAGE) {
             fileName = "IMG_"
                             + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.CHINA)
                             .format(new Date()) + ".jpg";
-        } else if (type == MEDIA_TYPE_VIDEO) {
+        } else if (type == FILE_TYPE_VIDEO) {
             fileName = "VID_"
                             + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.CHINA)
                             .format(new Date()) + ".mp4";
@@ -65,7 +76,7 @@ public class FileUtils {
      * @return filePathName
      */
     public static File createPictureFile(String fileName) {
-        return createMediaFile(getMediaFileDir(), fileName);
+        return createMediaFile(getFileDir(FILE_TYPE_IMAGE), fileName);
     }
 
     /**
@@ -75,7 +86,7 @@ public class FileUtils {
      * @return
      */
     public static File createVideoFile(String fileName) {
-        return createMediaFile(getMediaFileDir(), fileName);
+        return createMediaFile(getFileDir(FILE_TYPE_VIDEO), fileName);
     }
 
     /**

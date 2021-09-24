@@ -26,6 +26,8 @@ import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
 import com.frame.camera.R;
+import com.frame.camera.activity.SettingsActivity;
+import com.frame.camera.application.MyApplication;
 import com.frame.camera.databinding.FragmentCameraBinding;
 import com.frame.camera.sound.ISoundPlayback;
 import com.frame.camera.utils.CameraSoundUtils;
@@ -140,7 +142,9 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
     }
 
     private boolean isKeyDownStart() {
-        return requireActivity().getIntent().getBooleanExtra("key_down_start", false);
+        boolean start = requireActivity().getIntent().getBooleanExtra("key_down_start", false);
+        Log.d(TAG, "isKeyDownStart():key down start: " + start);
+        return start;
     }
 
     private void resetKeyDownFlag() {
@@ -302,6 +306,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             super.onCameraError(exception);
         }
 
+        @RequiresApi(api = Build.VERSION_CODES.Q)
         @Override
         public void onPictureTaken(@NonNull PictureResult result) {
             super.onPictureTaken(result);
@@ -450,6 +455,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         } else if (v == binding.shutImageView) {
             onShutterClick();
         } else if (v == binding.thumbImageView) {
+            MyApplication.isAppBtnClick = true;
             ThumbnailUtils.gotoGallery(getActivity(), ThumbnailUtils.getVideoThumbType(), ThumbnailUtils.getLastMediaFilePath());
         } else if (v == binding.cameraSwitchImageView) {
             mCameraView.setFacing(mCameraView.getFacing() == Facing.BACK ? Facing.FRONT : Facing.BACK);
@@ -473,6 +479,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
     @Override
     public void onResume() {
         super.onResume();
+        Log.d(TAG, "onResume()!");
+        MyApplication.isAppBtnClick = false;
         mCameraView.open();
         mHandler.postDelayed(thumbRunnable, 0);
         registerReceiver();
@@ -481,6 +489,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
     @Override
     public void onPause() {
         super.onPause();
+        Log.d(TAG, "onPause()!");
         SystemProperties.set("sys.camera.status", "0");//相机关闭
         unregisterReceiver();
         mCameraView.close();
