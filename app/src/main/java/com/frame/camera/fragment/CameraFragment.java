@@ -185,6 +185,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         binding.thumbImageView.setOnClickListener(this);
         binding.cameraSwitchImageView.setOnClickListener(this);
         binding.flashImageView.setOnClickListener(this);
+        binding.settingsImageView.setOnClickListener(this);
 
         //针对DT951的RunboZ1版本显示警员信息水印
         String custom_version = SystemProperties.get("ro.custom.build.version", "");
@@ -470,6 +471,11 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             } else if (mCameraView.getFlash() == Flash.AUTO) {
                 mCameraView.setFlash(Flash.OFF);
                 binding.flashImageView.setImageLevel(0);
+            }
+        } else if (v == binding.settingsImageView) {
+            if (getActivity() != null) {
+                MyApplication.isAppBtnClick = true;
+                getActivity().startActivity(new Intent(getActivity(), SettingsActivity.class));
             }
         }
     }
