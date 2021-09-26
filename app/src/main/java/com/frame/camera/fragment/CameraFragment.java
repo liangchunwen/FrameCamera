@@ -15,6 +15,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.provider.MediaStore;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -36,6 +37,7 @@ import com.frame.camera.utils.FileUtils;
 import com.frame.camera.utils.FocusUtils;
 import com.frame.camera.utils.SystemProperties;
 import com.frame.camera.utils.ThumbnailUtils;
+import com.frame.camera.utils.TrimVideoUtils;
 import com.otaliastudios.cameraview.CameraException;
 import com.otaliastudios.cameraview.CameraListener;
 import com.otaliastudios.cameraview.CameraOptions;
@@ -373,6 +375,74 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         }
     };
 
+    private String getDestPath(String path) {
+        String mPath = path.substring(0, path.lastIndexOf(".") - 1) + "_cut.mp4";
+        Log.d(TAG, "mPath: " + mPath);
+
+        return mPath;
+    }
+
+    private void videoCut() {
+        if (mCurrentPath !=null && !TextUtils.isEmpty(mCurrentPath)) {
+            final File sourceFile = new File(mCurrentPath);
+            final File destFile = new File(getDestPath(mCurrentPath));
+            final int start_S = 1;
+            final int end_S = 10;
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        TrimVideoUtils.getInstance().startTrim(true, start_S, end_S, sourceFile, destFile);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        Log.d(TAG, "e: " + e);
+                        TrimVideoUtils.getInstance().setTrimCallBack(null);
+                    }
+                }
+            }).start();
+        } else {
+            Log.d(TAG, "mCurrentPath is null!");
+        }
+    }
+
+    private TrimVideoUtils.TrimFileCallBack trimFileCallBack = new TrimVideoUtils.TrimFileCallBack() {
+        @Override
+        public void trimCallback(boolean isNew, int startS, int endS, int vTotal, File file, File trimFile) {
+            /**
+             * 裁剪回调
+             * @param isNew 是否新剪辑
+             * @param starts 开始时间(秒)
+             * @param ends 结束时间(秒)
+             * @param vTime 视频长度
+             * @param file 需要裁剪的文件路径
+             * @param trimFile 裁剪后保存的文件路径
+             */
+            // ===========
+            Log.d(TAG, "isNew : " + isNew);
+            Log.d(TAG, "startS : " + startS);
+            Log.d(TAG, "endS : " + endS);
+            Log.d(TAG, "vTotal : " + vTotal);
+            Log.d(TAG, "file : " + file.getAbsolutePath());
+            Log.d(TAG, "trimFile : " + trimFile.getAbsolutePath());
+        }
+
+        @Override
+        public void trimError(int eType) {
+            switch(eType){
+                case TrimVideoUtils.FILE_NOT_EXISTS: // 文件不存在
+                    System.out.println("视频文件不存在");
+                    break;
+                case TrimVideoUtils.TRIM_STOP: // 手动停止裁剪
+                    System.out.println("停止裁剪");
+                    break;
+                case TrimVideoUtils.TRIM_FAIL:
+                default: // 裁剪失败
+                    System.out.println("裁剪失败");
+                    break;
+            }
+        }
+    };
+
     @RequiresApi(api = Build.VERSION_CODES.Q)
     private void updateGallery(boolean isVideo, byte[] bytes) {
         //insert database(插入到系统相册数据库)
@@ -487,6 +557,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         super.onResume();
         Log.d(TAG, "onResume()!");
         MyApplication.isAppBtnClick = false;
+        TrimVideoUtils.getInstance().setTrimCallBack(trimFileCallBack);
         mCameraView.open();
         mHandler.postDelayed(thumbRunnable, 0);
         registerReceiver();
@@ -499,6 +570,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         SystemProperties.set("sys.camera.status", "0");//相机关闭
         unregisterReceiver();
         mCameraView.close();
+        TrimVideoUtils.getInstance().setTrimCallBack(null);
     }
 
     @Override
