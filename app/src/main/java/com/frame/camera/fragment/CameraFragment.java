@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.PointF;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -30,9 +31,11 @@ import com.frame.camera.R;
 import com.frame.camera.activity.SettingsActivity;
 import com.frame.camera.application.MyApplication;
 import com.frame.camera.databinding.FragmentCameraBinding;
+import com.frame.camera.location.LocationController;
 import com.frame.camera.sound.ISoundPlayback;
 import com.frame.camera.utils.CameraSoundUtils;
 import com.frame.camera.utils.CameraUtil;
+import com.frame.camera.utils.DecimalUtil;
 import com.frame.camera.utils.FileUtils;
 import com.frame.camera.utils.FocusUtils;
 import com.frame.camera.utils.SystemProperties;
@@ -59,13 +62,15 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Objects;
 
-public class CameraFragment extends Fragment implements View.OnClickListener {
+public class CameraFragment extends Fragment implements View.OnClickListener, LocationController.OnLocationListener {
     private static final String TAG = "CameraFragment:CAMERA";
     private static final String VIDEO_KEY_DOWN_ACTION = "com.runbo.video.key.down";
     private static final String CAMERA_KEY_DOWN_ACTION = "com.runbo.camera.key.down";
     private static final int UPDATE_THUMB_UI = 0;
 
+    private LocationController mLocationController;
     private FragmentCameraBinding binding;
     private CameraView mCameraView;
     private MyReceiver myReceiver;
@@ -153,6 +158,17 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         requireActivity().getIntent().putExtra("key_down_start", false);
     }
 
+    @SuppressLint("StringFormatMatches")
+    @Override
+    public void onLocation(Location location) {
+        if (mCameraView != null && location != null) {
+            mCameraView.setLocation(location);
+            String lng = DecimalUtil.saveDecimalDigit(String.valueOf(location.getLongitude()));
+            String lat = DecimalUtil.saveDecimalDigit(String.valueOf(location.getLatitude()));
+            binding.lngLatTv.setText(String.format(getString(R.string.lng_lat), lng, lat));
+        }
+    }
+
     private void setPoliceWaterMark() {
         String police_id = SystemProperties.get("persist.policeman.id", "");
         String police_name = SystemProperties.get("persist.policeman.name", "");
@@ -170,6 +186,19 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         binding.deviceIdTv.setText(String.format(getString(R.string.device_id), device_id));
         binding.companyIdTv.setText(String.format(getString(R.string.company_id), company_id));
         binding.companyNameTv.setText(String.format(getString(R.string.company_name), company_name));
+        binding.lngLatTv.setText(String.format(getString(R.string.lng_lat), "", ""));
+    }
+
+    private void showPreRecordingTips() {
+        if (mCameraView.getMode() == Mode.VIDEO) {
+            if (getPreVideoValue() > 0 && !mCameraView.isTakingVideo()) {
+                binding.preVideoTv.setVisibility(View.VISIBLE);
+            } else {
+                binding.preVideoTv.setVisibility(View.GONE);
+            }
+        } else {
+            binding.preVideoTv.setVisibility(View.GONE);
+        }
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
@@ -192,12 +221,16 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         //针对DT951的RunboZ1版本显示警员信息水印
         String custom_version = SystemProperties.get("ro.custom.build.version", "");
         Log.d(TAG, "custom_version: " + custom_version);
+        /*
         if (custom_version.startsWith("ZF2020_DT951_RunboZ1")) {
-            binding.policeInfoRl.setVisibility(View.VISIBLE);
+            binding.watermarkInfoRl.setVisibility(View.VISIBLE);
             setPoliceWaterMark();
         } else {
-            binding.policeInfoRl.setVisibility(View.GONE);
+            binding.watermarkInfoRl.setVisibility(View.GONE);
         }
+        */
+        binding.watermarkInfoRl.setVisibility(View.VISIBLE);
+        setPoliceWaterMark();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
@@ -281,10 +314,32 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
         }
     };
 
+    private int getPreVideoValue() {
+        String preValue = MyApplication.mSharedPreferences.getString("pre_transcription_values", "0");
+        Log.d(TAG, "getPreVideoValue-preValue: " + preValue);
+        return Integer.parseInt(preValue);
+    }
+
+    Runnable preRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mCameraView.getMode() == Mode.VIDEO) {
+                onShutterClick();//正常情况下,这行执行停止预录
+                if (getPreVideoValue() > 0) {
+                    onShutterClick();//正常情况下,这行执行开始预录
+                    mHandler.postDelayed(preRunnable, getPreVideoValue());
+                }
+            }
+        }
+    };
+
     CameraListener cameraListener = new CameraListener() {
         @Override
         public void onCameraOpened(@NonNull CameraOptions options) {
             super.onCameraOpened(options);
+            mLocationController = new LocationController(requireActivity());
+            mLocationController.setOnLocationListener(CameraFragment.this);
+            mLocationController.startLocation(requireActivity());
             SystemProperties.set("sys.camera.status", "1");//相机打开
             Log.d(TAG, SystemProperties.get("sys.camera.status", "0"));
             CameraSoundUtils.initSound(getActivity());
@@ -293,7 +348,14 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             if (isKeyDownStart()) {
                 onShutterClick();
                 resetKeyDownFlag();
-            }
+            }/* else {
+                if (mCameraView.getMode() == Mode.VIDEO) {
+                    if (getPreVideoValue() > 0) {
+                        onShutterClick();
+                        mHandler.postDelayed(preRunnable, getPreVideoValue());
+                    }
+                }
+            }*/
         }
 
         @Override
@@ -302,6 +364,9 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             SystemProperties.set("sys.camera.status", "0");//相机关闭
             Log.d(TAG, SystemProperties.get("sys.camera.status", "0"));
             CameraSoundUtils.releaseSound();
+            if (mLocationController != null) {
+                mLocationController.stopLocation();
+            }
         }
 
         @Override
@@ -463,7 +528,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener {
             }
             mContentValues = CameraUtil.createPhotoValues(bytes, mCurrentTitle, mCurrentTime, mCurrentPath, mPictureWidth, mPictureHeight);
             if (getActivity() != null) {
-                mUri = getActivity().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mContentValues);
+                //这行在S211上会报错
+                //mUri = getActivity().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mContentValues);
                 //getActivity().getContentResolver().update(mUri, mContentValues, null, null);
             }
         }

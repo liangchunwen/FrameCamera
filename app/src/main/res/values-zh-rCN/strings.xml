@@ -15,6 +15,7 @@
     <string name="device_id">设备编号：%1s</string>
     <string name="company_id">单位编号：%1s</string>
     <string name="company_name">单位名称：%1s</string>
+    <string name="lng_lat">经纬&#160;&#160;&#160;&#160;度：%1s,%2s</string>
     <string name="video">Video</string>
     <string name="picture">Picture</string>
     <string name="audio">Audio</string>

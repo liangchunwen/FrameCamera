@@ -16,6 +16,7 @@
     <string name="device_id">device id：%1s</string>
     <string name="company_id">company id：%1s</string>
     <string name="company_name">company name：%1s</string>
+    <string name="lng_lat">lng and lat：%1s,%2s</string>
     <string name="video">Video</string>
     <string name="picture">Picture</string>
     <string name="audio">Audio</string>

@@ -17,11 +17,15 @@ public class PermissionsUtils {
     /**
      * 拍照需要的权限
      */
-public  static final String[] CAMERA_REQUEST = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    public  static final String[] CAMERA_REQUEST = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE};
     /**
      * 录像需要的权限
      */
-  public  static final String[] VIDEO_PERMISSIONS = {Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO,Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    public  static final String[] VIDEO_PERMISSIONS = {Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO,Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    /**
+     * 录像定位的权限
+     */
+    public  static final String[] LOCATION_PERMISSIONS = {Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.WRITE_EXTERNAL_STORAGE};
     /**
      * 拍照权限的请求code
      */
@@ -30,6 +34,10 @@ public  static final String[] CAMERA_REQUEST = {Manifest.permission.CAMERA,Manif
      * 录像权限的请求code
      */
     public static final int VIDEO_REQUEST_CODE = 120;
+    /**
+     * 录像权限的请求code
+     */
+    public static final int LOCATION_REQUEST_CODE = 130;
     /**
      * 请求相机权限
      */
@@ -41,6 +49,12 @@ public  static final String[] CAMERA_REQUEST = {Manifest.permission.CAMERA,Manif
      */
     private static void requestVideoRecordPermission(Activity activity) {
         ActivityCompat.requestPermissions(activity,VIDEO_PERMISSIONS, VIDEO_REQUEST_CODE);
+    }
+    /**
+     * 请求定位权限
+     */
+    private static void requestLocationPermission(Activity activity) {
+        ActivityCompat.requestPermissions(activity,LOCATION_PERMISSIONS, LOCATION_REQUEST_CODE);
     }
 
     /**
@@ -64,6 +78,19 @@ public  static final String[] CAMERA_REQUEST = {Manifest.permission.CAMERA,Manif
     public static boolean checkVideoRecordPermission(Activity activity) {
         if (!hasPermissionGranted(activity,VIDEO_PERMISSIONS)) {
             requestVideoRecordPermission(activity);
+            return false;
+        } else {
+            return true;
+        }
+    }
+    /**
+     * 检查定位权限
+     * @param activity
+     * @return
+     */
+    public static boolean checkLocationPermission(Activity activity) {
+        if (!hasPermissionGranted(activity,LOCATION_PERMISSIONS)) {
+            requestLocationPermission(activity);
             return false;
         } else {
             return true;

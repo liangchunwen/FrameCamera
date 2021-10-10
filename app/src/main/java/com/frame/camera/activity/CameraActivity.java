@@ -21,8 +21,9 @@ public class CameraActivity extends BaseActivity {
         binding = ActivityCameraBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        if (PermissionsUtils.checkCameraPermission(this)
-                && PermissionsUtils.checkVideoRecordPermission(this)) {
+        if (PermissionsUtils.checkLocationPermission(this)
+                && PermissionsUtils.checkCameraPermission(this)
+                    && PermissionsUtils.checkVideoRecordPermission(this)) {
             Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         } else {
             Toast.makeText(this, R.string.without_camera_permission, Toast.LENGTH_SHORT).show();
