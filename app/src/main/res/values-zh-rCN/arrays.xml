@@ -11,11 +11,11 @@
     </string-array>
 
     <string-array name="pre_transcription_entries">
-        <item>close</item>
-        <item>10s</item>
-        <item>15s</item>
-        <item>20s</item>
-        <item>30s</item>
+        <item>关闭</item>
+        <item>10秒</item>
+        <item>15秒</item>
+        <item>20秒</item>
+        <item>30秒</item>
     </string-array>
 
     <string-array name="pre_transcription_values">
@@ -27,9 +27,9 @@
     </string-array>
 
     <string-array name="protein_entries">
-        <item>close</item>
-        <item>30s</item>
-        <item>60s</item>
+        <item>关闭</item>
+        <item>30秒</item>
+        <item>60秒</item>
     </string-array>
 
     <string-array name="protein_values">

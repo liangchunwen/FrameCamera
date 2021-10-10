@@ -15,8 +15,30 @@
     <string name="device_id">设备编号：%1s</string>
     <string name="company_id">单位编号：%1s</string>
     <string name="company_name">单位名称：%1s</string>
-    <string name="video">视频</string>
-    <string name="picture">图片</string>
-    <string name="audio">录音</string>
-    <string name="document">文档</string>
+    <string name="video">Video</string>
+    <string name="picture">Picture</string>
+    <string name="audio">Audio</string>
+    <string name="document">Document</string>
+
+    <string name="title_activity_settings">SettingsActivity</string>
+
+    <!-- Preference Titles -->
+    <string name="messages_header">Messages</string>
+    <string name="sync_header">Sync</string>
+
+    <!-- Messages Preferences -->
+    <string name="signature_title">Your signature</string>
+    <string name="reply_title">Default reply action</string>
+
+    <!-- Sync Preferences -->
+    <string name="sync_title">Sync email periodically</string>
+    <string name="attachment_title">Download incoming attachments</string>
+    <string name="attachment_summary_on">Automatically download attachments for incoming emails</string>
+    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+
+    <string name="pre_transcription_title">预录</string>
+    <string name="pre_transcription_summary">预先保存一定时长的画面,预录时间到后开始正式录制</string>
+    <string name="protein_title">延录</string>
+    <string name="protein_summary">当你点击停止录制时,不会立即停止录制,会继续录制指定的延录时间才停止</string>
+    <string name="pre_recording">预录中...</string>
 </resources>

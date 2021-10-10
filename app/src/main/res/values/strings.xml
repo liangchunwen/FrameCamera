@@ -20,6 +20,7 @@
     <string name="picture">Picture</string>
     <string name="audio">Audio</string>
     <string name="document">Document</string>
+
     <string name="title_activity_settings">SettingsActivity</string>
 
     <!-- Preference Titles -->
@@ -33,7 +34,12 @@
     <!-- Sync Preferences -->
     <string name="sync_title">Sync email periodically</string>
     <string name="attachment_title">Download incoming attachments</string>
-    <string name="attachment_summary_on">Automatically download attachments for incoming emails
-    </string>
+    <string name="attachment_summary_on">Automatically download attachments for incoming emails</string>
     <string name="attachment_summary_off">Only download attachments when manually requested</string>
+
+    <string name="pre_transcription_title">Pre-transcription</string>
+    <string name="pre_transcription_summary">Pre-transcription</string>
+    <string name="protein_title">Protein</string>
+    <string name="protein_summary">Protein</string>
+    <string name="pre_recording">Pre-Recording...</string>
 </resources>
