@@ -45,27 +45,36 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     public static class SettingsFragment extends PreferenceFragmentCompat implements OnPreferenceChangeListener{
-        private static final String KEY_PRETRAN = "pre_transcription";
-        private static final String KEY_PROTEIN = "protein";
+        private static final String PRE_PRETRAN_KEY = "pre_transcription_key";
+        private static final String PROTEIN_KEY = "protein_key";
+        private static final String FILE_PATH_KEY = "file_path_key";
         private ListPreference preTranListPre;
         private ListPreference proteinListPre;
+        private ListPreference filePathListPre;
 
         @Override
         public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
             setPreferencesFromResource(R.xml.root_preferences, rootKey);
-            preTranListPre = findPreference(KEY_PRETRAN);
+            preTranListPre = findPreference(PRE_PRETRAN_KEY);
             if (preTranListPre != null) {
                 String val = MyApplication.mSharedPreferences.getString("pre_transcription_values", "0");
                 Log.d(TAG, "pre-val: " + val);
                 preTranListPre.setValue(val);
                 preTranListPre.setOnPreferenceChangeListener(this);
             }
-            proteinListPre = findPreference(KEY_PROTEIN);
+            proteinListPre = findPreference(PROTEIN_KEY);
             if (proteinListPre != null) {
                 String val = MyApplication.mSharedPreferences.getString("protein_values", "0");
                 Log.d(TAG, "pro-val: " + val);
                 proteinListPre.setValue(val);
                 proteinListPre.setOnPreferenceChangeListener(this);
+            }
+            filePathListPre = findPreference(FILE_PATH_KEY);
+            if (filePathListPre != null) {
+                String val = MyApplication.mSharedPreferences.getString("file_path_values", "0");
+                Log.d(TAG, "path-val: " + val);
+                filePathListPre.setValue(val);
+                filePathListPre.setOnPreferenceChangeListener(this);
             }
         }
 
@@ -73,12 +82,15 @@ public class SettingsActivity extends AppCompatActivity {
         public boolean onPreferenceChange(Preference preference, Object newValue) {
             String value = (String) newValue;
             Log.d(TAG, "onPreferenceChange-value: " + value);
-            if (preference.getKey().equals(KEY_PRETRAN)) {
+            if (preference.getKey().equals(PRE_PRETRAN_KEY)) {
                 preTranListPre.setValue(value);
                 MyApplication.mEditor.putString("pre_transcription_values", value).apply();
-            } else if (preference.getKey().equals(KEY_PROTEIN)) {
+            } else if (preference.getKey().equals(PROTEIN_KEY)) {
                 proteinListPre.setValue(value);
                 MyApplication.mEditor.putString("protein_values", value).apply();
+            } else if (preference.getKey().equals(FILE_PATH_KEY)) {
+                filePathListPre.setValue(value);
+                MyApplication.mEditor.putString("file_path_values", value).apply();
             }
 
             return false;

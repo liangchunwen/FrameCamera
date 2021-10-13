@@ -4,7 +4,7 @@
         app:defaultValue="0"
         app:entries="@array/pre_transcription_entries"
         app:entryValues="@array/pre_transcription_values"
-        app:key="pre_transcription"
+        app:key="pre_transcription_key"
         app:title="@string/pre_transcription_title"
         app:summary="@string/pre_transcription_summary"
         app:useSimpleSummaryProvider="true" />
@@ -13,9 +13,18 @@
         app:defaultValue="0"
         app:entries="@array/protein_entries"
         app:entryValues="@array/protein_values"
-        app:key="protein"
+        app:key="protein_key"
         app:title="@string/protein_title"
         app:summary="@string/protein_summary"
+        app:useSimpleSummaryProvider="true" />
+
+    <ListPreference
+        app:defaultValue="0"
+        app:entries="@array/file_path_entries"
+        app:entryValues="@array/file_path_values"
+        app:key="file_path_key"
+        app:title="@string/file_path_title"
+        app:summary="@string/file_path_summary"
         app:useSimpleSummaryProvider="true" />
 
     <!--PreferenceCategory app:title="@string/messages_header">

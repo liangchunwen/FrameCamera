@@ -41,5 +41,7 @@
     <string name="pre_transcription_summary">预先保存一定时长的画面,预录时间到后开始正式录制</string>
     <string name="protein_title">延录</string>
     <string name="protein_summary">当你点击停止录制时,不会立即停止录制,会继续录制指定的延录时间才停止</string>
-    <string name="pre_recording">预录中...</string>
+    <string name="pre_recording">预录中…</string>
+    <string name="file_path_title">文件存储位置</string>
+    <string name="file_path_summary">内部存储</string>
 </resources>

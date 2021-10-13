@@ -6,7 +6,6 @@ import android.util.Log;
 import com.frame.camera.application.MyApplication;
 
 import java.io.File;
-import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -32,16 +31,42 @@ public class FileUtils {
     public static final int FILE_TYPE_AUDIO = 3;
     public static final int FILE_TYPE_DOCUMENT = 4;
 
+    // type:0 -> 内置SD, type:1 -> 外置SD
+    public static String getRootStorageDir(int type) {
+        String internalPath = Environment.getExternalStorageDirectory().getAbsolutePath();
+        Log.d(TAG, "internalPath: " + internalPath);
+        String rootPath = null;
+        if (type == 1) {
+            File[] files = MyApplication.getInstance().getExternalMediaDirs();
+            if (files != null && files.length > 1) {
+                for (File file : files) {
+                    String path = file.getAbsolutePath();
+                    Log.d(TAG, "path: " + path);
+                    if (!path.startsWith(internalPath)) {
+                        String externalPath = path.substring(0, path.indexOf("/Android"));
+                        Log.d(TAG, "externalPath: " + externalPath);
+                        rootPath = externalPath;
+                        break;
+                    }
+                }
+            }
+        } else {
+            rootPath = internalPath;
+        }
+
+        return rootPath;
+    }
+
     public static String getFileDir(int type) {
         String currentDir = Environment.getExternalStorageDirectory().getAbsolutePath();
         if (type == FILE_TYPE_IMAGE) {
-            currentDir = MyApplication.pictureDir.getAbsolutePath();
+            currentDir = MyApplication.getRootDir(MyApplication.pictureDir).getAbsolutePath();
         } else if (type == FILE_TYPE_VIDEO) {
-            currentDir = MyApplication.videoDir.getAbsolutePath();
+            currentDir = MyApplication.getRootDir(MyApplication.videoDir).getAbsolutePath();
         } else if (type == FILE_TYPE_AUDIO) {
-            currentDir = MyApplication.audioDir.getAbsolutePath();
+            currentDir = MyApplication.getRootDir(MyApplication.audioDir).getAbsolutePath();
         } else if (type == FILE_TYPE_DOCUMENT){
-            currentDir = MyApplication.documentDir.getAbsolutePath();
+            currentDir = MyApplication.getRootDir(MyApplication.documentDir).getAbsolutePath();
         }
         String fileDir = currentDir + File.separator + new SimpleDateFormat("yyyyMMdd", Locale.CHINA).format(new Date());
         File file = new File(fileDir);

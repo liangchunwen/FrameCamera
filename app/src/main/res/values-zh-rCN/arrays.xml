@@ -37,4 +37,14 @@
         <item>30</item>
         <item>60</item>
     </string-array>
+
+    <string-array name="file_path_entries">
+        <item>内部存储</item>
+        <item>外部存储</item>
+    </string-array>
+
+    <string-array name="file_path_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
 </resources>
