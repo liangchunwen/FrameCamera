@@ -612,6 +612,11 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         ContentValues mContentValues;
         Uri mUri;
         if (isVideo) {
+            if (mCurrentVideoSize == null) {
+                mCurrentVideoSize = mCameraView.getVideoSize();
+                if (mCurrentVideoSize == null)
+                    return;
+            }
             mContentValues = CameraUtil.createVideoValues(mCurrentTitle, mCurrentPath, mCurrentTime, mCurrentVideoSize.getWidth(), mCurrentVideoSize.getHeight());
             if (getActivity() != null) {
                 mUri = getActivity().getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, mContentValues);

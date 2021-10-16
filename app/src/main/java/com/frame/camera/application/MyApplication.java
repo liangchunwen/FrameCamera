@@ -27,6 +27,7 @@ public class MyApplication extends Application {
     public void onCreate() {
         super.onCreate();
         mInstance = this;
+        initSharedPreferences();
         String internalPath = FileUtils.getRootStorageDir(0);
         Log.d(TAG, "internalPath: " + internalPath);
         initDirs(internalPath);
@@ -34,8 +35,12 @@ public class MyApplication extends Application {
         Log.d(TAG, "externalPath: " + externalPath);
         if (externalPath != null) {
             initDirs(externalPath);
+            //有外置存储的时候文件默认保存在外置存储
+            MyApplication.mEditor.putString("file_path_values", "1").apply();
+        } else {
+            //没有外置存储的时候文件默认保存在内部存储
+            MyApplication.mEditor.putString("file_path_values", "0").apply();
         }
-        initSharedPreferences();
     }
 
     public static void initDirs(String rootPath) {

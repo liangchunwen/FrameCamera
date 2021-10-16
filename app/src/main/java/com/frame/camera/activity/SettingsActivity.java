@@ -12,6 +12,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.Preference.OnPreferenceChangeListener;
 import com.frame.camera.R;
 import com.frame.camera.application.MyApplication;
+import com.frame.camera.utils.FileUtils;
 
 public class SettingsActivity extends AppCompatActivity {
     private static final String TAG = "SettingsActivity:CAMERA";
@@ -71,10 +72,14 @@ public class SettingsActivity extends AppCompatActivity {
             }
             filePathListPre = findPreference(FILE_PATH_KEY);
             if (filePathListPre != null) {
-                String val = MyApplication.mSharedPreferences.getString("file_path_values", "0");
-                Log.d(TAG, "path-val: " + val);
-                filePathListPre.setValue(val);
-                filePathListPre.setOnPreferenceChangeListener(this);
+                if (FileUtils.getRootStorageDir(1) == null) {
+                    filePathListPre.setEnabled(false);
+                } else {
+                    String val = MyApplication.mSharedPreferences.getString("file_path_values", "0");
+                    Log.d(TAG, "path-val: " + val);
+                    filePathListPre.setValue(val);
+                    filePathListPre.setOnPreferenceChangeListener(this);
+                }
             }
         }
 
@@ -82,15 +87,19 @@ public class SettingsActivity extends AppCompatActivity {
         public boolean onPreferenceChange(Preference preference, Object newValue) {
             String value = (String) newValue;
             Log.d(TAG, "onPreferenceChange-value: " + value);
-            if (preference.getKey().equals(PRE_PRETRAN_KEY)) {
-                preTranListPre.setValue(value);
-                MyApplication.mEditor.putString("pre_transcription_values", value).apply();
-            } else if (preference.getKey().equals(PROTEIN_KEY)) {
-                proteinListPre.setValue(value);
-                MyApplication.mEditor.putString("protein_values", value).apply();
-            } else if (preference.getKey().equals(FILE_PATH_KEY)) {
-                filePathListPre.setValue(value);
-                MyApplication.mEditor.putString("file_path_values", value).apply();
+            switch (preference.getKey()) {
+                case PRE_PRETRAN_KEY:
+                    preTranListPre.setValue(value);
+                    MyApplication.mEditor.putString("pre_transcription_values", value).apply();
+                    break;
+                case PROTEIN_KEY:
+                    proteinListPre.setValue(value);
+                    MyApplication.mEditor.putString("protein_values", value).apply();
+                    break;
+                case FILE_PATH_KEY:
+                    filePathListPre.setValue(value);
+                    MyApplication.mEditor.putString("file_path_values", value).apply();
+                    break;
             }
 
             return false;
