@@ -63,12 +63,18 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class CameraFragment extends Fragment implements View.OnClickListener, LocationController.OnLocationListener {
     private static final String TAG = "CameraFragment:CAMERA";
     private static final String VIDEO_KEY_DOWN_ACTION = "com.runbo.video.key.down";
     private static final String CAMERA_KEY_DOWN_ACTION = "com.runbo.camera.key.down";
     private static final int UPDATE_THUMB_UI = 0;
+    private static boolean isVideoKeyDown = false;
+    private static boolean isVideoRecording = true;
+    private MyTimerTask mMyTimerTask;
+    private Timer mTimer;
 
     private LocationController mLocationController;
     private FragmentCameraBinding binding;
@@ -77,21 +83,15 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
     private String mCurrentPath;
     private String mCurrentTitle;
     private long mCurrentTime;
-    private Size mCurrentSize;
+    private Size mCurrentVideoSize;
 
     @SuppressLint("HandlerLeak")
     public Handler mHandler = new Handler(Looper.getMainLooper()) {
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
-            switch (msg.what) {
-                case UPDATE_THUMB_UI: {
-                    updateThumbBtnUI();
-                    break;
-                }
-
-                default:
-                    break;
+            if (msg.what == UPDATE_THUMB_UI) {
+                updateThumbBtnUI();
             }
         }
     };
@@ -101,22 +101,59 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             Log.d(TAG, "action: " + action);
-            if (action.equals(VIDEO_KEY_DOWN_ACTION)) {
-                //如果当前是拍照模式则切换为录像模式
-                if (mCameraView.getMode() == Mode.PICTURE) {
-                    onModeSwitch("video");
-                }
-                onShutterClick();
-            } else if (action.equals(CAMERA_KEY_DOWN_ACTION)) {
-                if (mCameraView.isTakingVideo()) {
-                    mCameraView.takePictureSnapshot();
-                } else {
-                    //如果当前是录像模式则切换为拍照模式
-                    if (mCameraView.getMode() == Mode.VIDEO) {
-                        onModeSwitch("camera");
+            switch (action) {
+                case VIDEO_KEY_DOWN_ACTION:
+                    MyApplication.isModeBtnClick = false;
+                    //如果当前是拍照模式则切换为录像模式
+                    if (mCameraView.getMode() == Mode.PICTURE) {
+                        isVideoKeyDown = true;
+                        onModeSwitch("video");
+                        MyApplication.isPreRecording = false;
+                        startVideoRecording();
+                    } else {
+                        if (getPreVideoValue() > 0) {//VIDEO模式下,getPreVideoValue() > 0,要么正在常规录制,要么在预录
+                            if (MyApplication.isPreRecording) {//当前正在预录则直接转为正常录制
+                                MyApplication.isPreRecording = false;
+                                binding.shutImageView.setImageResource(R.drawable.ic_video_recording_background);
+                                binding.shutImageView.invalidate();
+                                CameraSoundUtils.playSound(getActivity(), ISoundPlayback.START_VIDEO_RECORDING);
+                                showPreRecordingTips();
+                                releasePreRecordingTimer();
+                            } else {
+                                if (isVideoRecording) {//当前正在常规录像则停止录像
+                                    stopVideoRecording();
+                                }
+                            }
+                        } else {
+                            MyApplication.isPreRecording = false;
+                            if (isVideoRecording) {
+                                stopVideoRecording();
+                            } else {
+                                startVideoRecording();
+                            }
+                        }
                     }
-                    onShutterClick();
-                }
+                    break;
+                case CAMERA_KEY_DOWN_ACTION:
+                    if (getPreVideoValue() > 0) {
+                        if (MyApplication.isPreRecording) {
+                            MyApplication.isModeBtnClick = true;
+                            releasePreRecordingTimer();
+                            stopVideoRecording();
+                            MyApplication.isPreRecording = false;
+                            showPreRecordingTips();
+                            onModeSwitch("camera");
+                        }
+                    } else {
+                        if (!isVideoRecording) {
+                            //如果当前是录像模式则切换为拍照模式
+                            if (mCameraView.getMode() == Mode.VIDEO) {
+                                onModeSwitch("camera");
+                            }
+                        }
+                    }
+                    takePicture();
+                    break;
             }
         }
     }
@@ -190,15 +227,20 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
     }
 
     private void showPreRecordingTips() {
-        if (mCameraView.getMode() == Mode.VIDEO) {
-            if (getPreVideoValue() > 0 && !mCameraView.isTakingVideo()) {
-                binding.preVideoTv.setVisibility(View.VISIBLE);
-            } else {
-                binding.preVideoTv.setVisibility(View.GONE);
+        requireActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mCameraView.getMode() == Mode.VIDEO) {
+                    if (MyApplication.isPreRecording) {
+                        binding.preVideoTv.setVisibility(View.VISIBLE);
+                    } else {
+                        binding.preVideoTv.setVisibility(View.GONE);
+                    }
+                } else {
+                    binding.preVideoTv.setVisibility(View.GONE);
+                }
             }
-        } else {
-            binding.preVideoTv.setVisibility(View.GONE);
-        }
+        });
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
@@ -320,23 +362,39 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         return Integer.parseInt(preValue);
     }
 
-    Runnable preRunnable = new Runnable() {
+    private class MyTimerTask extends TimerTask {
         @Override
         public void run() {
-            if (mCameraView.getMode() == Mode.VIDEO) {
-                onShutterClick();//正常情况下,这行执行停止预录
-                if (getPreVideoValue() > 0) {
-                    onShutterClick();//正常情况下,这行执行开始预录
-                    mHandler.postDelayed(preRunnable, getPreVideoValue());
-                }
-            }
+            Log.d(TAG, "run()!!!!");
+            MyApplication.isPreRecording = true;
+            stopVideoRecording();
         }
-    };
+    }
+
+    private void releasePreRecordingTimer() {
+        if (mMyTimerTask != null) {
+            mMyTimerTask.cancel();
+            mMyTimerTask = null;
+        }
+        if (mTimer != null) {
+            mTimer.cancel();
+            mTimer.purge();
+            mTimer = null;
+        }
+    }
+
+    private void startPreRecordingTimer() {
+        releasePreRecordingTimer();
+        mMyTimerTask = new MyTimerTask();
+        mTimer = new Timer();
+        mTimer.schedule(mMyTimerTask, 11*1000, (getPreVideoValue() + 2) * 1000L);
+    }
 
     CameraListener cameraListener = new CameraListener() {
         @Override
         public void onCameraOpened(@NonNull CameraOptions options) {
             super.onCameraOpened(options);
+            Log.d(TAG, "onCameraOpened()!!!!!");
             mLocationController = new LocationController(requireActivity());
             mLocationController.setOnLocationListener(CameraFragment.this);
             mLocationController.startLocation(requireActivity());
@@ -346,21 +404,29 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
             mCameraView.startAutoFocus((float) mCameraView.getWidth() / 2, (float) mCameraView.getHeight() / 2);
             mCameraView.setAutoFocusResetDelay(1000);
             if (isKeyDownStart()) {
-                onShutterClick();
+                MyApplication.isPreRecording = false;
+                startVideoRecording();
                 resetKeyDownFlag();
-            }/* else {
-                if (mCameraView.getMode() == Mode.VIDEO) {
-                    if (getPreVideoValue() > 0) {
-                        onShutterClick();
-                        mHandler.postDelayed(preRunnable, getPreVideoValue());
+            } else {
+                Log.d(TAG, "isVideoKeyDown: " + isVideoKeyDown);
+                if (!isVideoKeyDown) {//此类本地广播接收到的key down不在这里相应
+                    if (getPreVideoValue() > 0) {//预录模式打开的状态下
+                        if (mCameraView.getMode() == Mode.VIDEO) {//当前是录像模式则进入预录
+                            MyApplication.isPreRecording = true;
+                            startVideoRecording();
+                            startPreRecordingTimer();
+                        }
                     }
+                } else {
+                    isVideoKeyDown = false;
                 }
-            }*/
+            }
         }
 
         @Override
         public void onCameraClosed() {
             super.onCameraClosed();
+            Log.d(TAG, "onCameraClosed()!!!!!");
             SystemProperties.set("sys.camera.status", "0");//相机关闭
             Log.d(TAG, SystemProperties.get("sys.camera.status", "0"));
             CameraSoundUtils.releaseSound();
@@ -381,9 +447,34 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
             savePictureData(result);
         }
 
+        @RequiresApi(api = Build.VERSION_CODES.Q)
         @Override
         public void onVideoTaken(@NonNull VideoResult result) {
             super.onVideoTaken(result);
+            Log.d(TAG, "onVideoTaken()!!!");
+            isVideoRecording = false;
+            if (!MyApplication.isModeBtnClick) {
+                binding.shutImageView.setImageResource(R.drawable.ic_video_btn_background);
+                binding.shutImageView.invalidate();
+                binding.thumbImageView.setEnabled(true);
+                Log.d(TAG, "onVideoTaken()-MyApplication.isPreRecording: " + MyApplication.isPreRecording);
+                if (getPreVideoValue() > 0) {//预录模式打开状态下
+                    if (MyApplication.isPreRecording) {//预录结束后继续预录
+                        startVideoRecording();
+                    } else {//常规录制结束后,启动预录线程
+                        mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
+                        updateGallery(true, null);
+                        MyApplication.isPreRecording = true;
+                        startVideoRecording();
+                        startPreRecordingTimer();
+                    }
+                } else {
+                    mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
+                    updateGallery(true, null);
+                }
+            } else {
+                MyApplication.isModeBtnClick = false;
+            }
         }
 
         @Override
@@ -414,24 +505,31 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         @Override
         public void onVideoRecordingStart() {
             super.onVideoRecordingStart();
+            isVideoRecording = true;
+            Log.d(TAG, "onVideoRecordingStart()!!!");
             // 初始化mVideoSize
-            mCurrentSize = mCameraView.getVideoSize();
-            binding.shutImageView.setImageResource(R.drawable.ic_video_recording_background);
-            binding.shutImageView.invalidate();
+            mCurrentVideoSize = mCameraView.getVideoSize();
             binding.thumbImageView.setEnabled(false);
-            CameraSoundUtils.playSound(getActivity(), ISoundPlayback.START_VIDEO_RECORDING);
+            Log.d(TAG, "onVideoRecordingStart()-MyApplication.isPreRecording: " + MyApplication.isPreRecording);
+            if (!MyApplication.isPreRecording) {//预录的过程中不播放提示音
+                binding.shutImageView.setImageResource(R.drawable.ic_video_recording_background);
+                binding.shutImageView.invalidate();
+                CameraSoundUtils.playSound(getActivity(), ISoundPlayback.START_VIDEO_RECORDING);
+            }
         }
 
         @RequiresApi(api = Build.VERSION_CODES.Q)
         @Override
         public void onVideoRecordingEnd() {
             super.onVideoRecordingEnd();
-            binding.shutImageView.setImageResource(R.drawable.ic_video_btn_background);
-            binding.shutImageView.invalidate();
-            binding.thumbImageView.setEnabled(true);
-            mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
-            updateGallery(true, null);
-            CameraSoundUtils.playSound(getActivity(), ISoundPlayback.STOP_VIDEO_RECORDING);
+            Log.d(TAG, "onVideoRecordingEnd()!!!");
+            if (getPreVideoValue() > 0) {
+                if (!MyApplication.isPreRecording && !MyApplication.isModeBtnClick) {//预录的过程中不播放提示音
+                    CameraSoundUtils.playSound(getActivity(), ISoundPlayback.STOP_VIDEO_RECORDING);
+                }
+            } else {
+                CameraSoundUtils.playSound(getActivity(), ISoundPlayback.STOP_VIDEO_RECORDING);
+            }
         }
 
         @Override
@@ -514,17 +612,17 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         ContentValues mContentValues;
         Uri mUri;
         if (isVideo) {
-            mContentValues = CameraUtil.createVideoValues(mCurrentTitle, mCurrentPath, mCurrentTime, mCurrentSize.getWidth(), mCurrentSize.getHeight());
+            mContentValues = CameraUtil.createVideoValues(mCurrentTitle, mCurrentPath, mCurrentTime, mCurrentVideoSize.getWidth(), mCurrentVideoSize.getHeight());
             if (getActivity() != null) {
                 mUri = getActivity().getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, mContentValues);
                 getActivity().getContentResolver().update(mUri, mContentValues, null, null);
             }
         } else {
-            mCurrentSize = mCameraView.getPictureSize();
+            Size mCurrentPictureSize = mCameraView.getPictureSize();
             int mPictureWidth = 0, mPictureHeight = 0;
-            if (mCurrentSize != null) {
-                mPictureWidth = mCurrentSize.getWidth();
-                mPictureHeight = mCurrentSize.getHeight();
+            if (mCurrentPictureSize != null) {
+                mPictureWidth = mCurrentPictureSize.getWidth();
+                mPictureHeight = mCurrentPictureSize.getHeight();
             }
             mContentValues = CameraUtil.createPhotoValues(bytes, mCurrentTitle, mCurrentTime, mCurrentPath, mPictureWidth, mPictureHeight);
             if (getActivity() != null) {
@@ -557,40 +655,80 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         }
     }
 
-    private void onShutterClick() {
-        if (mCameraView.getMode() == Mode.PICTURE) {
-            // 隐藏对焦框
-            FocusUtils.hideFocus();
-            // 停止播放对焦声音
-            mCameraView.setPlaySounds(false);
+    private void takePicture() {
+        // 隐藏对焦框
+        FocusUtils.hideFocus();
+        // 停止播放对焦声音
+        mCameraView.setPlaySounds(false);
+        if (!mCameraView.isTakingVideo()) {
             CameraSoundUtils.playSound(getActivity(), ISoundPlayback.SHUTTER_CLICK);
-            mCameraView.takePictureSnapshot();
-        } else if (mCameraView.getMode() == Mode.VIDEO) {
-            if (mCameraView.isTakingVideo()) {
-                mCameraView.stopVideo();
-            } else {
-                // 隐藏对焦框
-                FocusUtils.hideFocus();
-                // 停止播放对焦声音
-                mCameraView.setPlaySounds(false);
-
-                mCurrentTime = System.currentTimeMillis();
-                mCurrentTitle = CameraUtil.createFileTitle(true, mCurrentTime);
-                String fileName = CameraUtil.createFileName(true, mCurrentTitle);
-                //File mVideoFile = FileUtils.createVideoFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_VIDEO));
-                File mVideoFile = FileUtils.createVideoFile(fileName);
-                mCurrentPath = mVideoFile.getAbsolutePath();
-                mCameraView.takeVideoSnapshot(mVideoFile);
-            }
         }
+        mCameraView.takePictureSnapshot();
+    }
+
+    private void startVideoRecording() {
+        Log.d(TAG, "startVideoRecording()!!!!");
+        showPreRecordingTips();
+        // 隐藏对焦框
+        FocusUtils.hideFocus();
+        // 停止播放对焦声音
+        mCameraView.setPlaySounds(false);
+
+        mCurrentTime = System.currentTimeMillis();
+        mCurrentTitle = CameraUtil.createFileTitle(true, mCurrentTime);
+        String fileName = CameraUtil.createFileName(true, mCurrentTitle);
+        //File mVideoFile = FileUtils.createVideoFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_VIDEO));
+        File mVideoFile = FileUtils.createVideoFile(fileName);
+        mCurrentPath = mVideoFile.getAbsolutePath();
+        mCameraView.takeVideoSnapshot(mVideoFile);
+    }
+
+    private void stopVideoRecording() {
+        Log.d(TAG, "stopVideoRecording()!!!!");
+        showPreRecordingTips();
+        mCameraView.stopVideo();
     }
 
     @Override
     public void onClick(View v) {
         if (v == binding.modeSwitchImageView) {
+            MyApplication.isModeBtnClick = true;
+            if (getPreVideoValue() > 0) {
+                if (MyApplication.isPreRecording && isVideoRecording) {
+                    releasePreRecordingTimer();
+                    stopVideoRecording();
+                    MyApplication.isPreRecording = false;
+                    showPreRecordingTips();
+                }
+            }
             onModeSwitch(null);
         } else if (v == binding.shutImageView) {
-            onShutterClick();
+            MyApplication.isModeBtnClick = false;
+            if (mCameraView.getMode() == Mode.PICTURE) {
+                takePicture();
+            } else if (mCameraView.getMode() == Mode.VIDEO) {
+                if (getPreVideoValue() > 0) {//VIDEO模式下,getPreVideoValue() > 0,要么正在常规录制,要么在预录
+                    if (MyApplication.isPreRecording) {//当前正在预录则直接转为正常录制
+                        MyApplication.isPreRecording = false;
+                        binding.shutImageView.setImageResource(R.drawable.ic_video_recording_background);
+                        binding.shutImageView.invalidate();
+                        CameraSoundUtils.playSound(getActivity(), ISoundPlayback.START_VIDEO_RECORDING);
+                        showPreRecordingTips();
+                        releasePreRecordingTimer();
+                    } else {
+                        if (isVideoRecording) {//当前正在常规录像则停止录像
+                            stopVideoRecording();
+                        }
+                    }
+                } else {
+                    MyApplication.isPreRecording = false;
+                    if (isVideoRecording) {
+                        stopVideoRecording();
+                    } else {
+                        startVideoRecording();
+                    }
+                }
+            }
         } else if (v == binding.thumbImageView) {
             MyApplication.isAppBtnClick = true;
             ThumbnailUtils.gotoGallery(getActivity(), ThumbnailUtils.getVideoThumbType(), ThumbnailUtils.getLastMediaFilePath());
@@ -623,6 +761,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         super.onResume();
         Log.d(TAG, "onResume()!");
         MyApplication.isAppBtnClick = false;
+        MyApplication.isModeBtnClick = false;
         TrimVideoUtils.getInstance().setTrimCallBack(trimFileCallBack);
         mCameraView.open();
         mHandler.postDelayed(thumbRunnable, 0);
@@ -635,6 +774,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         Log.d(TAG, "onPause()!");
         SystemProperties.set("sys.camera.status", "0");//相机关闭
         unregisterReceiver();
+        releasePreRecordingTimer();
         mCameraView.close();
         TrimVideoUtils.getInstance().setTrimCallBack(null);
     }
@@ -642,6 +782,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        Log.d(TAG, "onDestroyView()!");
+        releasePreRecordingTimer();
         mCameraView.removeCameraListener(cameraListener);
         mCameraView.destroy();
         binding = null;

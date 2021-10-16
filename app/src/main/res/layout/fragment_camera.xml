@@ -44,20 +44,6 @@
             app:layout_drawOnPictureSnapshot="true"
             app:layout_drawOnVideoSnapshot="true">
 
-            <TextView
-                android:id="@+id/pre_video_tv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_marginStart="20dp"
-                android:layout_alignParentTop="true"
-                android:layout_marginTop="90dp"
-                android:gravity="start|center_vertical"
-                android:text="@string/pre_recording"
-                android:textSize="18sp"
-                android:textColor="@color/green"
-                android:visibility="gone"/>
-
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -138,6 +124,19 @@
         </RelativeLayout>
 
     </com.otaliastudios.cameraview.CameraView>
+
+    <TextView
+        android:id="@+id/pre_video_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="130dp"
+        android:gravity="start|center_vertical"
+        android:text="@string/pre_recording"
+        android:textSize="16sp"
+        android:textColor="@color/green"
+        android:visibility="gone"/>
 
     <ImageView
         android:id="@+id/flash_image_view"

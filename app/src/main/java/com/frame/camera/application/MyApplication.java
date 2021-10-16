@@ -20,6 +20,8 @@ public class MyApplication extends Application {
     public static SharedPreferences mSharedPreferences;
     public static SharedPreferences.Editor mEditor;
     public static boolean isAppBtnClick = false;
+    public static boolean isModeBtnClick = false;
+    public static boolean isPreRecording = false;
 
     @Override
     public void onCreate() {
