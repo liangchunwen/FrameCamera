@@ -74,6 +74,9 @@ public class SettingsActivity extends AppCompatActivity {
             if (filePathListPre != null) {
                 if (FileUtils.getRootStorageDir(1) == null) {
                     filePathListPre.setEnabled(false);
+                    String val = MyApplication.mSharedPreferences.getString("file_path_values", "0");
+                    Log.d(TAG, "path-val: " + val);
+                    filePathListPre.setValue(val);
                 } else {
                     String val = MyApplication.mSharedPreferences.getString("file_path_values", "0");
                     Log.d(TAG, "path-val: " + val);
