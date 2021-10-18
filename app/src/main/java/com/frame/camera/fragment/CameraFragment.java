@@ -191,6 +191,13 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         return start;
     }
 
+    private boolean isKeyStartVideo() {
+        boolean isVideoMode = requireActivity().getIntent().getStringExtra("camera_mode").equals("video");
+        Log.d(TAG, "isKeyStartVideo():key down start: " + isVideoMode);
+
+        return isVideoMode;
+    }
+
     private void resetKeyDownFlag() {
         requireActivity().getIntent().putExtra("key_down_start", false);
     }
@@ -244,7 +251,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         super.onViewCreated(view, savedInstanceState);
         mCameraView = binding.cameraView;
         if (isKeyDownStart()) {
-            onModeSwitch(requireActivity().getIntent().getStringExtra("camera_mode"));
+            onModeSwitch(isKeyStartVideo()? "video" : "camera");
         }
         FocusUtils.initFocus(getActivity(), mCameraView);
         mCameraView.setAutoFocusMarker(autoFocusMarker);
@@ -390,8 +397,12 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
             mCameraView.startAutoFocus((float) mCameraView.getWidth() / 2, (float) mCameraView.getHeight() / 2);
             mCameraView.setAutoFocusResetDelay(1000);
             if (isKeyDownStart()) {
-                MyApplication.isPreRecording = false;
-                startVideoRecording();
+                if (isKeyStartVideo()) {
+                    MyApplication.isPreRecording = false;
+                    startVideoRecording();
+                } else {
+                    takePicture();
+                }
                 resetKeyDownFlag();
             } else {
                 Log.d(TAG, "isVideoKeyDown: " + isVideoKeyDown);
