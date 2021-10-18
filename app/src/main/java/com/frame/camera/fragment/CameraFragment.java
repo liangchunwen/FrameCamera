@@ -38,6 +38,7 @@ import com.frame.camera.utils.CameraUtil;
 import com.frame.camera.utils.DecimalUtil;
 import com.frame.camera.utils.FileUtils;
 import com.frame.camera.utils.FocusUtils;
+import com.frame.camera.utils.JoinVideoUtils;
 import com.frame.camera.utils.SystemProperties;
 import com.frame.camera.utils.ThumbnailUtils;
 import com.frame.camera.utils.TrimVideoUtils;
@@ -50,7 +51,6 @@ import com.otaliastudios.cameraview.VideoResult;
 import com.otaliastudios.cameraview.controls.Facing;
 import com.otaliastudios.cameraview.controls.Flash;
 import com.otaliastudios.cameraview.controls.Mode;
-import com.otaliastudios.cameraview.frame.Frame;
 import com.otaliastudios.cameraview.frame.FrameProcessor;
 import com.otaliastudios.cameraview.markers.AutoFocusMarker;
 import com.otaliastudios.cameraview.markers.AutoFocusTrigger;
@@ -62,7 +62,7 @@ import org.jetbrains.annotations.NotNull;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Objects;
+import java.util.ArrayList;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -72,7 +72,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
     private static final String CAMERA_KEY_DOWN_ACTION = "com.runbo.camera.key.down";
     private static final int UPDATE_THUMB_UI = 0;
     private static boolean isVideoKeyDown = false;
-    private static boolean isVideoRecording = true;
+    private static boolean isVideoRecording = false;
     private MyTimerTask mMyTimerTask;
     private Timer mTimer;
 
@@ -227,18 +227,15 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
     }
 
     private void showPreRecordingTips() {
-        requireActivity().runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (mCameraView.getMode() == Mode.VIDEO) {
-                    if (MyApplication.isPreRecording) {
-                        binding.preVideoTv.setVisibility(View.VISIBLE);
-                    } else {
-                        binding.preVideoTv.setVisibility(View.GONE);
-                    }
+        requireActivity().runOnUiThread(() -> {
+            if (mCameraView.getMode() == Mode.VIDEO) {
+                if (MyApplication.isPreRecording) {
+                    binding.preVideoTv.setVisibility(View.VISIBLE);
                 } else {
                     binding.preVideoTv.setVisibility(View.GONE);
                 }
+            } else {
+                binding.preVideoTv.setVisibility(View.GONE);
             }
         });
     }
@@ -263,14 +260,6 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         //针对DT951的RunboZ1版本显示警员信息水印
         String custom_version = SystemProperties.get("ro.custom.build.version", "");
         Log.d(TAG, "custom_version: " + custom_version);
-        /*
-        if (custom_version.startsWith("ZF2020_DT951_RunboZ1")) {
-            binding.watermarkInfoRl.setVisibility(View.VISIBLE);
-            setPoliceWaterMark();
-        } else {
-            binding.watermarkInfoRl.setVisibility(View.GONE);
-        }
-        */
         binding.watermarkInfoRl.setVisibility(View.VISIBLE);
         setPoliceWaterMark();
     }
@@ -330,11 +319,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         }
     }
 
-    FrameProcessor frameProcessor = new FrameProcessor() {
-        @Override
-        public void process(@NonNull Frame frame) {
-            byte[] bytes = frame.getData();
-        }
+    FrameProcessor frameProcessor = frame -> {
+        //byte[] bytes = frame.getData();
     };
 
     AutoFocusMarker autoFocusMarker = new DefaultAutoFocusMarker() {
@@ -429,6 +415,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
             Log.d(TAG, "onCameraClosed()!!!!!");
             SystemProperties.set("sys.camera.status", "0");//相机关闭
             Log.d(TAG, SystemProperties.get("sys.camera.status", "0"));
+            FileUtils.setCurrentPreVideoFile(null);
             CameraSoundUtils.releaseSound();
             if (mLocationController != null) {
                 mLocationController.stopLocation();
@@ -453,27 +440,73 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
             super.onVideoTaken(result);
             Log.d(TAG, "onVideoTaken()!!!");
             isVideoRecording = false;
-            if (!MyApplication.isModeBtnClick) {
-                binding.shutImageView.setImageResource(R.drawable.ic_video_btn_background);
-                binding.shutImageView.invalidate();
-                binding.thumbImageView.setEnabled(true);
-                Log.d(TAG, "onVideoTaken()-MyApplication.isPreRecording: " + MyApplication.isPreRecording);
-                if (getPreVideoValue() > 0) {//预录模式打开状态下
-                    if (MyApplication.isPreRecording) {//预录结束后继续预录
-                        startVideoRecording();
-                    } else {//常规录制结束后,启动预录线程
+            if (mCameraView.getMode() == Mode.VIDEO) {
+                if (!MyApplication.isModeBtnClick) {
+                    binding.shutImageView.setImageResource(R.drawable.ic_video_btn_background);
+                    binding.shutImageView.invalidate();
+                    binding.thumbImageView.setEnabled(true);
+                    Log.d(TAG, "onVideoTaken()-MyApplication.isPreRecording: " + MyApplication.isPreRecording);
+                    if (getPreVideoValue() > 0) {//预录模式打开状态下
+                        if (MyApplication.isPreRecording) {//预录结束后继续预录
+                            Log.d(TAG, "mCurrentPath: " + mCurrentPath);
+                            if (FileUtils.isPreVideoExist()) {
+                                boolean preVideoDelete = FileUtils.getCurrentPreVideoFile().delete();
+                                Log.d(TAG, "1-preVideoDelete: " + preVideoDelete);
+                            }
+                            File newPreFile = new File(mCurrentPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.PRE_VIDEO_FORMAT));
+                            if (new File(mCurrentPath).renameTo(newPreFile)) {
+                                mCurrentPath = newPreFile.getAbsolutePath();
+                                FileUtils.setCurrentPreVideoFile(newPreFile);
+                                Log.d(TAG, "1-a new pre video file!!!");
+                            }
+                            startVideoRecording();
+                        } else {//常规录制结束后,启动预录线程
+                            requireActivity().runOnUiThread(() -> {
+                                mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
+                                updateGallery(true, null);
+                                MyApplication.isPreRecording = true;
+
+                                if (FileUtils.isPreVideoExist()) {
+                                    File preVideo = FileUtils.getCurrentPreVideoFile();
+                                    File currentVideo = new File(mCurrentPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.JOIN_VIDEO_FORMAT));
+
+                                    ArrayList<String> videoList = new ArrayList<>();
+                                    //待合成的2个视频文件
+                                    videoList.add(preVideo.getAbsolutePath());
+                                    videoList.add(mCurrentPath);
+                                    JoinVideoUtils joinVideoUtils = new JoinVideoUtils(getActivity(), videoList, currentVideo.getAbsolutePath());
+                                    if (!joinVideoUtils.isRunning()) {
+                                        joinVideoUtils.joinVideo();
+                                    }
+                                }
+                                FileUtils.setCurrentPreVideoFile(null);
+                                startVideoRecording();
+                                startPreRecordingTimer();
+                            });
+                        }
+                    } else {
                         mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
                         updateGallery(true, null);
-                        MyApplication.isPreRecording = true;
-                        startVideoRecording();
-                        startPreRecordingTimer();
                     }
                 } else {
-                    mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
-                    updateGallery(true, null);
+                    MyApplication.isModeBtnClick = false;
+                    Log.d(TAG, "onVideoTaken()-MyApplication.isPreRecording: " + MyApplication.isPreRecording);
+                    if (getPreVideoValue() > 0) {//预录模式打开状态下
+                        Log.d(TAG, "mCurrentPath: " + mCurrentPath);
+                        if (FileUtils.isPreVideoExist()) {
+                            boolean preVideoDelete = FileUtils.getCurrentPreVideoFile().delete();
+                            Log.d(TAG, "1-preVideoDelete: " + preVideoDelete);
+                        }
+                        File newPreFile = new File(mCurrentPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.PRE_VIDEO_FORMAT));
+                        if (new File(mCurrentPath).renameTo(newPreFile)) {
+                            mCurrentPath = newPreFile.getAbsolutePath();
+                            FileUtils.setCurrentPreVideoFile(newPreFile);
+                            Log.d(TAG, "1-a new pre video file!!!");
+                        }
+                        MyApplication.isPreRecording = true;
+                        startVideoRecording();
+                    }
                 }
-            } else {
-                MyApplication.isModeBtnClick = false;
             }
         }
 
@@ -551,16 +584,13 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
             final File destFile = new File(getDestPath(mCurrentPath));
             final int start_S = 1;
             final int end_S = 10;
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        TrimVideoUtils.getInstance().startTrim(true, start_S, end_S, sourceFile, destFile);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        Log.d(TAG, "e: " + e);
-                        TrimVideoUtils.getInstance().setTrimCallBack(null);
-                    }
+            new Thread(() -> {
+                try {
+                    TrimVideoUtils.getInstance().startTrim(true, start_S, end_S, sourceFile, destFile);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    Log.d(TAG, "e: " + e);
+                    TrimVideoUtils.getInstance().setTrimCallBack(null);
                 }
             }).start();
         } else {
@@ -568,10 +598,10 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         }
     }
 
-    private TrimVideoUtils.TrimFileCallBack trimFileCallBack = new TrimVideoUtils.TrimFileCallBack() {
+    private final TrimVideoUtils.TrimFileCallBack trimFileCallBack = new TrimVideoUtils.TrimFileCallBack() {
         @Override
         public void trimCallback(boolean isNew, int startS, int endS, int vTotal, File file, File trimFile) {
-            /**
+            /* *
              * 裁剪回调
              * @param isNew 是否新剪辑
              * @param starts 开始时间(秒)
@@ -671,6 +701,22 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         mCameraView.takePictureSnapshot();
     }
 
+    private String getPreVideoFileName(String fileName) {
+        Log.d(TAG, "getPreVideoFileName-fileName: " + fileName);
+        String preNameStr = fileName.replace(FileUtils.VIDEO_FORMAT, FileUtils.PRE_VIDEO_FORMAT);
+        Log.d(TAG, "getPreVideoFileName-preNameStr: " + preNameStr);
+
+        return preNameStr;
+    }
+
+    private String getTempPreVideoFileName(String fileName) {
+        Log.d(TAG, "getTempPreVideoFileName-fileName: " + fileName);
+        String tempPreNameStr = fileName.replace(FileUtils.VIDEO_FORMAT, FileUtils.TEMP_PRE_VIDEO_FORMAT);
+        Log.d(TAG, "getTempPreVideoFileName-tempPreNameStr: " + tempPreNameStr);
+
+        return tempPreNameStr;
+    }
+
     private void startVideoRecording() {
         Log.d(TAG, "startVideoRecording()!!!!");
         showPreRecordingTips();
@@ -682,7 +728,6 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         mCurrentTime = System.currentTimeMillis();
         mCurrentTitle = CameraUtil.createFileTitle(true, mCurrentTime);
         String fileName = CameraUtil.createFileName(true, mCurrentTitle);
-        //File mVideoFile = FileUtils.createVideoFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_VIDEO));
         File mVideoFile = FileUtils.createVideoFile(fileName);
         mCurrentPath = mVideoFile.getAbsolutePath();
         mCameraView.takeVideoSnapshot(mVideoFile);

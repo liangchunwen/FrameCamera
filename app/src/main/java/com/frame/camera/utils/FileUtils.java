@@ -15,7 +15,8 @@ import java.util.Locale;
  */
 
 public class FileUtils {
-    public static final String TAG = FileUtils.class.getSimpleName() + ":CAMERA";
+    private static final String TAG = FileUtils.class.getSimpleName() + ":CAMERA";
+    private static File currentPreVideoFile;
     /**
      * 相片格式
      */
@@ -25,11 +26,26 @@ public class FileUtils {
      * 视频格式
      */
     public static final String VIDEO_FORMAT = ".mp4";
+    public static final String PRE_VIDEO_FORMAT = "_pre.mp4";
+    public static final String TEMP_PRE_VIDEO_FORMAT = "_pre_temp.mp4";
+    public static final String JOIN_VIDEO_FORMAT = "_join.mp4";
 
     public static final int FILE_TYPE_IMAGE = 1;
     public static final int FILE_TYPE_VIDEO = 2;
     public static final int FILE_TYPE_AUDIO = 3;
     public static final int FILE_TYPE_DOCUMENT = 4;
+
+    public static boolean isPreVideoExist() {
+        return (currentPreVideoFile != null && currentPreVideoFile.exists());
+    }
+
+    public static void setCurrentPreVideoFile(File file) {
+        currentPreVideoFile = file;
+    }
+
+    public static File getCurrentPreVideoFile() {
+        return currentPreVideoFile;
+    }
 
     // type:0 -> 内置SD, type:1 -> 外置SD
     public static String getRootStorageDir(int type) {

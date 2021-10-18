@@ -108,13 +108,12 @@ public class JoinVideoUtils {
             fc.close();
 
             // 合成完成后把原片段文件删除
-            /*
-             *
-            for (String filePath : filePaths) {
+            for (String filePath : videoUris) {
                 File file = new File(filePath);
-                file.delete();
+                Log.d(TAG, "" + file.getAbsolutePath() + " delete " + file.delete());
             }
-            */
+            // 恢复合并后的文件名称
+            Log.d(TAG, "rename result is " + resultFile.renameTo(new File(output.replace(FileUtils.JOIN_VIDEO_FORMAT, FileUtils.VIDEO_FORMAT))));
 
             isRunning = false;
 
