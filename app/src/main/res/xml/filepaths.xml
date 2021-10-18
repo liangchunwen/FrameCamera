@@ -2,7 +2,9 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
 <!--代表外部存储区域的根目录下的文件 Environment.getExternalStorageDirectory()/DCIM/camerademo目录-->
 <!--/storage/emulated/0/DCIM/Camera-->
-<external-path name="hm_DCIM" path="DCIM/Camera" />
+<root-path name="DCIM" path="" /><!-- 这个配置内外置SD卡都可以访问 -->
+<!--/storage/emulated/0/DCIM/Camera-->
+<!--external-path name="hm_DCIM" path="DCIM/Camera" /--><!-- 这个配置只能访问内部存储 -->
 
 <!--代表外部存储区域的根目录下的文件 Environment.getExternalStorageDirectory()/Pictures/camerademo目录-->
 <!--/storage/emulated/0/Pictures/camerademo-->
