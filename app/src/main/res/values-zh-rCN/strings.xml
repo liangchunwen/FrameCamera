@@ -44,4 +44,6 @@
     <string name="pre_recording">预录中…</string>
     <string name="file_path_title">文件存储位置</string>
     <string name="file_path_summary">内部存储</string>
+    <string name="internal_storage_info">内部存储：%1sGB(可用空间)/%2sGB(总容量)</string>
+    <string name="external_storage_info">外部存储：%1sGB(可用空间)/%2sGB(总容量)</string>
 </resources>

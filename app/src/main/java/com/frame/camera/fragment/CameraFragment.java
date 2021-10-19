@@ -39,6 +39,7 @@ import com.frame.camera.utils.DecimalUtil;
 import com.frame.camera.utils.FileUtils;
 import com.frame.camera.utils.FocusUtils;
 import com.frame.camera.utils.JoinVideoUtils;
+import com.frame.camera.utils.StorageInfoUtil;
 import com.frame.camera.utils.SystemProperties;
 import com.frame.camera.utils.ThumbnailUtils;
 import com.frame.camera.utils.TrimVideoUtils;
@@ -383,7 +384,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         mTimer.schedule(mMyTimerTask, 11*1000, (getPreVideoValue() + 2) * 1000L);
     }
 
-    private Runnable pictureRunnable = () -> takePicture();
+    private final Runnable pictureRunnable = this::takePicture;
 
     CameraListener cameraListener = new CameraListener() {
         @Override
@@ -819,10 +820,29 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
 
     private final Runnable thumbRunnable = () -> mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
 
+    private void showStorageInfo() {
+        if (StorageInfoUtil.isExternalStorageExist()) {
+            String exAvail = StorageInfoUtil.saveDecimalDigit(String.valueOf(StorageInfoUtil.getExternalStorageAvailable()));
+            String exTotal = StorageInfoUtil.saveDecimalDigit(String.valueOf(StorageInfoUtil.getExternalStorageTotal()));
+            String inAvail = StorageInfoUtil.saveDecimalDigit(String.valueOf(StorageInfoUtil.getInternalStorageAvailable()));
+            String inTotal = StorageInfoUtil.saveDecimalDigit(String.valueOf(StorageInfoUtil.getInternalStorageTotal()));
+            Log.d(TAG, "external exAvail/exTotal: " + exAvail + "/" + exTotal);
+            Log.d(TAG, "internal inAvail/inTotal: " + inAvail + "/" + inTotal);
+            binding.externalStorageTv.setText(String.format(getString(R.string.external_storage_info), exAvail, exTotal));
+            binding.internalStorageTv.setText(String.format(getString(R.string.internal_storage_info), inAvail, inTotal));
+        } else {
+            String avail = StorageInfoUtil.saveDecimalDigit(String.valueOf(StorageInfoUtil.getInternalStorageAvailable()));
+            String total = StorageInfoUtil.saveDecimalDigit(String.valueOf(StorageInfoUtil.getInternalStorageTotal()));
+            Log.d(TAG, "internal avail/total: " + avail + "/" + total);
+            binding.internalStorageTv.setText(String.format(getString(R.string.internal_storage_info), avail, total));
+        }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
         Log.d(TAG, "onResume()!");
+        showStorageInfo();
         MyApplication.isAppBtnClick = false;
         MyApplication.isModeBtnClick = false;
         TrimVideoUtils.getInstance().setTrimCallBack(trimFileCallBack);
