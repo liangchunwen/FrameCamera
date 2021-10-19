@@ -27,8 +27,8 @@ android {
         applicationId "com.frame.camera"
         minSdk 23
         targetSdk 30
-        versionCode 104
-        versionName "FrameCamera_v1.0.4"
+        versionCode 105
+        versionName "FrameCamera_v1.0.5"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -383,6 +383,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         mTimer.schedule(mMyTimerTask, 11*1000, (getPreVideoValue() + 2) * 1000L);
     }
 
+    private Runnable pictureRunnable = () -> takePicture();
+
     CameraListener cameraListener = new CameraListener() {
         @Override
         public void onCameraOpened(@NonNull CameraOptions options) {
@@ -401,7 +403,7 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
                     MyApplication.isPreRecording = false;
                     startVideoRecording();
                 } else {
-                    takePicture();
+                    mHandler.postDelayed(pictureRunnable, 500);
                 }
                 resetKeyDownFlag();
             } else {
