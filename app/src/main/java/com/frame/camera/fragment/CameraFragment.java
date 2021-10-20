@@ -81,18 +81,20 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
     private FragmentCameraBinding binding;
     private CameraView mCameraView;
     private MyReceiver myReceiver;
-    private String mCurrentPath;
+    //private String mCurrentPath;
     private String mCurrentTitle;
     private long mCurrentTime;
     private Size mCurrentVideoSize;
 
     @SuppressLint("HandlerLeak")
     public Handler mHandler = new Handler(Looper.getMainLooper()) {
+        @RequiresApi(api = Build.VERSION_CODES.Q)
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
             if (msg.what == UPDATE_THUMB_UI) {
                 updateThumbBtnUI();
+                updateGallery(true, null);
             }
         }
     };
@@ -279,9 +281,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         mCurrentTime = System.currentTimeMillis();
         mCurrentTitle = CameraUtil.createFileTitle(false, mCurrentTime);
         String fileName = CameraUtil.createFileName(false, mCurrentTitle);
-        //File mPictureFile = FileUtils.createPictureFile(FileUtils.getMediaFileName(FileUtils.MEDIA_TYPE_IMAGE));
         File mPictureFile = FileUtils.createPictureFile(fileName);
-        mCurrentPath = mPictureFile.getAbsolutePath();
+        FileUtils.setCurrentPictureFile(mPictureFile);
         updateGallery(false, bytes);
         try {
             // save to file
@@ -319,11 +320,13 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
             binding.shutImageView.invalidate();
             binding.modeSwitchImageView.setImageResource(R.drawable.ic_video_mode_unselected);
             binding.modeSwitchImageView.invalidate();
+            binding.thumbImageView.setEnabled(true);
         } else if (Mode.VIDEO == mode) {
             binding.shutImageView.setImageResource(R.drawable.ic_video_btn_background);
             binding.shutImageView.invalidate();
             binding.modeSwitchImageView.setImageResource(R.drawable.ic_photo_mode_unselected);
             binding.modeSwitchImageView.invalidate();
+            binding.thumbImageView.setEnabled(!MyApplication.isPreRecording);
         }
     }
 
@@ -455,6 +458,9 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
             Log.d(TAG, "onVideoTaken()!!!");
             isVideoRecording = false;
             if (mCameraView.getMode() == Mode.VIDEO) {
+                File mCurrentVideoFile = FileUtils.getCurrentVideoFile();
+                String mCurrentVideoPath = mCurrentVideoFile.getAbsolutePath();
+                Log.d(TAG, "mCurrentVideoPath: " + mCurrentVideoPath);
                 if (!MyApplication.isModeBtnClick) {
                     binding.shutImageView.setImageResource(R.drawable.ic_video_btn_background);
                     binding.shutImageView.invalidate();
@@ -462,36 +468,41 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
                     Log.d(TAG, "onVideoTaken()-MyApplication.isPreRecording: " + MyApplication.isPreRecording);
                     if (getPreVideoValue() > 0) {//预录模式打开状态下
                         if (MyApplication.isPreRecording) {//预录结束后继续预录
-                            Log.d(TAG, "mCurrentPath: " + mCurrentPath);
                             if (FileUtils.isPreVideoExist()) {
                                 boolean preVideoDelete = FileUtils.getCurrentPreVideoFile().delete();
                                 Log.d(TAG, "1-preVideoDelete: " + preVideoDelete);
                             }
-                            File newPreFile = new File(mCurrentPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.PRE_VIDEO_FORMAT));
-                            if (new File(mCurrentPath).renameTo(newPreFile)) {
-                                mCurrentPath = newPreFile.getAbsolutePath();
+                            File newPreFile = new File(mCurrentVideoPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.PRE_VIDEO_FORMAT));
+                            if (new File(mCurrentVideoPath).renameTo(newPreFile)) {
                                 FileUtils.setCurrentPreVideoFile(newPreFile);
                                 Log.d(TAG, "1-a new pre video file!!!");
                             }
                             startVideoRecording();
                         } else {//常规录制结束后,启动预录线程
                             requireActivity().runOnUiThread(() -> {
-                                mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
-                                updateGallery(true, null);
                                 MyApplication.isPreRecording = true;
 
                                 if (FileUtils.isPreVideoExist()) {
                                     File preVideo = FileUtils.getCurrentPreVideoFile();
-                                    File currentVideo = new File(mCurrentPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.JOIN_VIDEO_FORMAT));
+                                    File currentVideo = new File(mCurrentVideoPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.JOIN_VIDEO_FORMAT));
 
                                     ArrayList<String> videoList = new ArrayList<>();
                                     //待合成的2个视频文件
                                     videoList.add(preVideo.getAbsolutePath());
-                                    videoList.add(mCurrentPath);
-                                    JoinVideoUtils joinVideoUtils = new JoinVideoUtils(getActivity(), videoList, currentVideo.getAbsolutePath());
-                                    if (!joinVideoUtils.isRunning()) {
-                                        joinVideoUtils.joinVideo();
-                                    }
+                                    videoList.add(mCurrentVideoPath);
+                                    new Thread() {
+                                        @Override
+                                        public void run() {
+                                            super.run();
+                                            JoinVideoUtils joinVideoUtils = new JoinVideoUtils(getActivity(), videoList, currentVideo.getAbsolutePath());
+                                            if (!joinVideoUtils.isRunning()) {
+                                                joinVideoUtils.joinVideo(mHandler);
+                                            }
+                                        }
+                                    }.start();
+                                } else {
+                                    FileUtils.setThumbnailFile(mCurrentVideoFile);
+                                    mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
                                 }
                                 FileUtils.setCurrentPreVideoFile(null);
                                 startVideoRecording();
@@ -499,21 +510,21 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
                             });
                         }
                     } else {
+                        FileUtils.setThumbnailFile(mCurrentVideoFile);
                         mHandler.sendEmptyMessage(UPDATE_THUMB_UI);
-                        updateGallery(true, null);
+                        //updateGallery(true, null);
                     }
                 } else {
                     MyApplication.isModeBtnClick = false;
                     Log.d(TAG, "onVideoTaken()-MyApplication.isPreRecording: " + MyApplication.isPreRecording);
                     if (getPreVideoValue() > 0) {//预录模式打开状态下
-                        Log.d(TAG, "mCurrentPath: " + mCurrentPath);
                         if (FileUtils.isPreVideoExist()) {
                             boolean preVideoDelete = FileUtils.getCurrentPreVideoFile().delete();
                             Log.d(TAG, "1-preVideoDelete: " + preVideoDelete);
                         }
-                        File newPreFile = new File(mCurrentPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.PRE_VIDEO_FORMAT));
-                        if (new File(mCurrentPath).renameTo(newPreFile)) {
-                            mCurrentPath = newPreFile.getAbsolutePath();
+                        File newPreFile = new File(mCurrentVideoPath.replace(FileUtils.VIDEO_FORMAT, FileUtils.PRE_VIDEO_FORMAT));
+                        if (new File(mCurrentVideoPath).renameTo(newPreFile)) {
+                            //mCurrentPath = newPreFile.getAbsolutePath();
                             FileUtils.setCurrentPreVideoFile(newPreFile);
                             Log.d(TAG, "1-a new pre video file!!!");
                         }
@@ -593,9 +604,10 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
     }
 
     private void videoCut() {
-        if (mCurrentPath !=null && !TextUtils.isEmpty(mCurrentPath)) {
-            final File sourceFile = new File(mCurrentPath);
-            final File destFile = new File(getDestPath(mCurrentPath));
+        String videoPath = FileUtils.getCurrentVideoFile().getAbsolutePath();
+        if (!TextUtils.isEmpty(videoPath)) {
+            final File sourceFile = new File(videoPath);
+            final File destFile = new File(getDestPath(videoPath));
             final int start_S = 1;
             final int end_S = 10;
             new Thread(() -> {
@@ -661,10 +673,13 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
                 if (mCurrentVideoSize == null)
                     return;
             }
-            mContentValues = CameraUtil.createVideoValues(mCurrentTitle, mCurrentPath, mCurrentTime, mCurrentVideoSize.getWidth(), mCurrentVideoSize.getHeight());
+            String videoPath = FileUtils.getCurrentVideoFile().getAbsolutePath();
+            Log.d(TAG, "updateGallery-videoPath: " + videoPath);
+            mContentValues = CameraUtil.createVideoValues(mCurrentTitle, videoPath, mCurrentTime, mCurrentVideoSize.getWidth(), mCurrentVideoSize.getHeight());
             if (getActivity() != null) {
                 mUri = getActivity().getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, mContentValues);
                 getActivity().getContentResolver().update(mUri, mContentValues, null, null);
+                getActivity().sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.parse("file://" + videoPath)));
             }
         } else {
             Size mCurrentPictureSize = mCameraView.getPictureSize();
@@ -673,15 +688,16 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
                 mPictureWidth = mCurrentPictureSize.getWidth();
                 mPictureHeight = mCurrentPictureSize.getHeight();
             }
-            mContentValues = CameraUtil.createPhotoValues(bytes, mCurrentTitle, mCurrentTime, mCurrentPath, mPictureWidth, mPictureHeight);
+            String picturePath = FileUtils.getCurrentPictureFile().getAbsolutePath();
+            Log.d(TAG, "updateGallery-picturePath: " + picturePath);
+            mContentValues = CameraUtil.createPhotoValues(bytes, mCurrentTitle, mCurrentTime, picturePath, mPictureWidth, mPictureHeight);
             if (getActivity() != null) {
-                //这行在S211上会报错
-                //mUri = getActivity().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mContentValues);
-                //getActivity().getContentResolver().update(mUri, mContentValues, null, null);
+                /* 这行在S211上会报错
+                 * mUri = getActivity().getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mContentValues);
+                 * getActivity().getContentResolver().update(mUri, mContentValues, null, null);
+                 */
+                getActivity().sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.parse("file://" + picturePath)));
             }
-        }
-        if (getActivity() != null) {
-            getActivity().sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.parse("file://" + mCurrentPath)));
         }
     }
 
@@ -715,22 +731,6 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         mCameraView.takePictureSnapshot();
     }
 
-    private String getPreVideoFileName(String fileName) {
-        Log.d(TAG, "getPreVideoFileName-fileName: " + fileName);
-        String preNameStr = fileName.replace(FileUtils.VIDEO_FORMAT, FileUtils.PRE_VIDEO_FORMAT);
-        Log.d(TAG, "getPreVideoFileName-preNameStr: " + preNameStr);
-
-        return preNameStr;
-    }
-
-    private String getTempPreVideoFileName(String fileName) {
-        Log.d(TAG, "getTempPreVideoFileName-fileName: " + fileName);
-        String tempPreNameStr = fileName.replace(FileUtils.VIDEO_FORMAT, FileUtils.TEMP_PRE_VIDEO_FORMAT);
-        Log.d(TAG, "getTempPreVideoFileName-tempPreNameStr: " + tempPreNameStr);
-
-        return tempPreNameStr;
-    }
-
     private void startVideoRecording() {
         Log.d(TAG, "startVideoRecording()!!!!");
         showPreRecordingTips();
@@ -743,7 +743,8 @@ public class CameraFragment extends Fragment implements View.OnClickListener, Lo
         mCurrentTitle = CameraUtil.createFileTitle(true, mCurrentTime);
         String fileName = CameraUtil.createFileName(true, mCurrentTitle);
         File mVideoFile = FileUtils.createVideoFile(fileName);
-        mCurrentPath = mVideoFile.getAbsolutePath();
+        FileUtils.setCurrentVideoFile(mVideoFile);
+        //mCurrentPath = mVideoFile.getAbsolutePath();
         mCameraView.takeVideoSnapshot(mVideoFile);
     }
 

@@ -1,6 +1,7 @@
 package com.frame.camera.utils;
 
 import android.content.Context;
+import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
@@ -25,7 +26,8 @@ import java.util.List;
  */
 
 public class JoinVideoUtils {
-    private static final String TAG = "JoinVideoUtils_TAG";
+    private static final String TAG = "JoinVideoUtils:CAMERA";
+    private static final int UPDATE_THUMB_UI = 0;
     private final Context context;
     //需要拼接的mp4视频的地址
     private final List<String> videoUris;
@@ -44,7 +46,7 @@ public class JoinVideoUtils {
         return isRunning;
     }
 
-    public void joinVideo() {
+    public void joinVideo(Handler handler) {
         isRunning = true;
 
         if (videoUris == null || videoUris.size() <= 0 || TextUtils.isEmpty(output)) {
@@ -113,12 +115,18 @@ public class JoinVideoUtils {
                 Log.d(TAG, "" + file.getAbsolutePath() + " delete " + file.delete());
             }
             // 恢复合并后的文件名称
-            Log.d(TAG, "rename result is " + resultFile.renameTo(new File(output.replace(FileUtils.JOIN_VIDEO_FORMAT, FileUtils.VIDEO_FORMAT))));
-
+            File sourceFile = new File(output.replace(FileUtils.JOIN_VIDEO_FORMAT, FileUtils.VIDEO_FORMAT));
+            boolean rename = resultFile.renameTo(sourceFile);
+            Log.d(TAG, "rename result is " + rename);
+            if (rename) {
+                FileUtils.setCurrentVideoFile(sourceFile);
+                FileUtils.setThumbnailFile(sourceFile);
+                if (handler != null) {
+                    handler.sendEmptyMessage(UPDATE_THUMB_UI);
+                }
+                Log.d(TAG, "video join successfully!!!");
+            }
             isRunning = false;
-
-            Toast.makeText(context, "拼接成功", Toast.LENGTH_SHORT).show();
-
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             Log.i(TAG, "--文件到不到异常--");

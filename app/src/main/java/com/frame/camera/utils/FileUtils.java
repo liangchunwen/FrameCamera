@@ -17,6 +17,8 @@ import java.util.Locale;
 public class FileUtils {
     private static final String TAG = FileUtils.class.getSimpleName() + ":CAMERA";
     private static File currentPreVideoFile;
+    private static File currentVideoFile;
+    private static File currentPictureFile;
     /**
      * 相片格式
      */
@@ -27,13 +29,28 @@ public class FileUtils {
      */
     public static final String VIDEO_FORMAT = ".mp4";
     public static final String PRE_VIDEO_FORMAT = "_pre.mp4";
-    public static final String TEMP_PRE_VIDEO_FORMAT = "_pre_temp.mp4";
     public static final String JOIN_VIDEO_FORMAT = "_join.mp4";
 
     public static final int FILE_TYPE_IMAGE = 1;
     public static final int FILE_TYPE_VIDEO = 2;
     public static final int FILE_TYPE_AUDIO = 3;
     public static final int FILE_TYPE_DOCUMENT = 4;
+
+    public static void setCurrentVideoFile(File currentVideoFile) {
+        FileUtils.currentVideoFile = currentVideoFile;
+    }
+
+    public static File getCurrentVideoFile() {
+        return currentVideoFile;
+    }
+
+    public static void setCurrentPictureFile(File currentPictureFile) {
+        FileUtils.currentPictureFile = currentPictureFile;
+    }
+
+    public static File getCurrentPictureFile() {
+        return currentPictureFile;
+    }
 
     public static boolean isPreVideoExist() {
         return (currentPreVideoFile != null && currentPreVideoFile.exists());
@@ -113,7 +130,7 @@ public class FileUtils {
     /**
      * 创建制定目录下的图片文件
      *
-     * @param fileName
+     * @param fileName file
      * @return filePathName
      */
     public static File createPictureFile(String fileName) {
@@ -123,11 +140,17 @@ public class FileUtils {
     /**
      * 创建制定目录下的视频文件
      *
-     * @param
-     * @return
+     * @param fileName file
+     * @return result
      */
     public static File createVideoFile(String fileName) {
         return createMediaFile(getFileDir(FILE_TYPE_VIDEO), fileName);
+    }
+
+    public static void setThumbnailFile(File file) {
+        ThumbnailUtils.setLastMediaFilePath(file.getAbsolutePath());
+        ThumbnailUtils.setVideoThumbType(!file.getName().endsWith(PICTURE_FORMAT_PNG)
+                && !file.getName().endsWith(PICTURE_FORMAT_JPG));
     }
 
     /**
@@ -141,8 +164,7 @@ public class FileUtils {
      */
     private static File createMediaFile(String dirName, String fileName) {
         File filePath = new File(dirName + File.separator + fileName);
-        ThumbnailUtils.setLastMediaFilePath(filePath.getAbsolutePath());
-        ThumbnailUtils.setVideoThumbType(!fileName.endsWith(PICTURE_FORMAT_PNG) && !fileName.endsWith(PICTURE_FORMAT_JPG));
+        setThumbnailFile(filePath);
 
         return filePath;
     }

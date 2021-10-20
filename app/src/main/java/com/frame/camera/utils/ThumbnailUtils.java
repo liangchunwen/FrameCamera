@@ -40,7 +40,7 @@ public class ThumbnailUtils {
     public static void gotoGallery(Activity activity, boolean isVideo, String filePath) {
         Uri uri;
         try {
-            Log.i(TAG, "goto gallery:" + filePath);
+            Log.i(TAG, "gotoGallery-filePath:" + filePath);
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -57,11 +57,13 @@ public class ThumbnailUtils {
             activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
             activity.startActivity(intent);
         } catch (Exception ex) {
+            Log.i(TAG, "gotoGallery-ex:" + ex);
             ex.printStackTrace();
         }
     }
 
     public static Bitmap getImageThumbnail(String imagePath) {
+        Log.i(TAG, "getImageThumbnail-imagePath:" + imagePath);
         Bitmap bitmap;
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
@@ -84,6 +86,7 @@ public class ThumbnailUtils {
     }
 
     public static Bitmap getVideoThumbnail(String videoPath) {
+        Log.i(TAG, "getVideoThumbnail-videoPath:" + videoPath);
         Bitmap bitmap;
         bitmap = android.media.ThumbnailUtils.createVideoThumbnail(videoPath, MediaStore.Video.Thumbnails.MICRO_KIND);
         bitmap = android.media.ThumbnailUtils.extractThumbnail(bitmap, 45, 45,
