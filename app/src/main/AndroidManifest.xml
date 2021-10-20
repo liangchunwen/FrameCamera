@@ -50,6 +50,8 @@
             </intent-filter>
         </activity>
 
+        <service android:name=".service.ForegroundService"/>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.frame.camera.fileprovider"
